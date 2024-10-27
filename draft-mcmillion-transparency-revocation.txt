@@ -143,12 +143,12 @@ Table of Contents
    time, the end-user stops enforcing these security properties
    altogether.
 
-   In addition, given that we're primarily interested in describing a
-   system that works equally well regardless of the end-user's software
-   vendor, these third-party services may not be able to restrict access
-   to a subset of end-users.  They would receive regular requests from
-   all internet-connected devices, which would present significant
-   scaling and centralization concerns.
+   A second issue is that, since we're primarily interested in
+   describing a system that works equally well regardless of the end-
+   user's software vendor, these third-party services might not be
+   permitted to restrict access to a subset of end-users.  They would
+   receive regular requests from all internet-connected devices, which
+   would present significant scaling and centralization concerns.
 
    *Servers must refresh their certificates regularly and
    automatically.* This is a direct consequence of the decision that
@@ -174,8 +174,9 @@ Table of Contents
    revoke it, and then maintain the certificate's utility by presenting
    different views of its revocation status to attack victims than to
    other participants.  The possibility of such a split-view attack
-   renders revocation a fundamentally ineffective tool for correcting
-   mis-issuance.
+   would render revocation fundamentally insufficient for correcting
+   mis-issuance, and would create a need for a second (more effective)
+   revocation mechanism.
 
    In the case where CAs initiate revocation by declining to sign new
    statements, this makes the CA a single point-of-failure for websites
@@ -191,7 +192,7 @@ Table of Contents
    certificates are required to be short-lived.  If end-users enforce
    that all certificates are short-lived, and issuance is transparent,
    then revocation is provided by the transparency system as claimed.
-   If certificates may be issued with longer lifespans, then a secondary
+   If certificates may be issued with longer lifespans, then a second
    revocation mechanism for these certificates is necessary.
    Considering solutions other than short-lived certificates, where the
    CA initiates revocation by declining to sign some statement, it's
@@ -237,8 +238,8 @@ Table of Contents
    to them, while still being able to guarantee that no certificates
    have been issued for their domains that they are unaware of.  As a
    result of the significantly reduced need for outbound bandwidth,
-   operating such a transparency log would cost (at minimum) one million
-   times less than it would otherwise.
+   operating such a transparency log would cost around one million times
+   less than it would otherwise.
 
 4.  Security Considerations
 
