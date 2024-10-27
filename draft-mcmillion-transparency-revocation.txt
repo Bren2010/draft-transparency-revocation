@@ -68,7 +68,9 @@ Table of Contents
      3.2.  Discussion
    4.  Security Considerations
    5.  IANA Considerations
-   6.  Normative References
+   6.  References
+     6.1.  Normative References
+     6.2.  Informative References
    Acknowledgments
    Author's Address
 
@@ -196,6 +198,48 @@ Table of Contents
    clear that the same potential for split-view attacks exists as
    discussed above.
 
+   *Transparency logs must implement the Key Transparency protocol.* As
+   stated at the beginning of this section, the goal of any transparency
+   system is to ensure that data shown to one participant is equally
+   visible to any other participant.  An important aspect of this
+   requirement is that server operators must be able to contact a
+   transparency log and verifiably receive all of the certificates and
+   revocations that are relevant to them.
+
+   Most transparency systems require downloading the entirety of the
+   log's contents to ensure that all potentially relevant entries are
+   found.  This quickly becomes prohibitively expensive for all parties.
+   Currently roughly 7.5 million certificates are issued per day, with
+   an average size of 3 kilobytes.  This means that a site operator
+   would need to download almost 700 gigabytes of certificates to cover
+   a single month of issuance.  Outbound bandwidth typically costs
+   between 1 to 9 cents per gigabyte, which means that providing this
+   data to a single server operator would cost the transparency log
+   between $6 to $60.  For any reasonable estimate of the number of
+   server operators on the internet, this represents an exceptional
+   burden on a transparency log.
+
+   In previously deployed systems, because of this exceptional cost,
+   site operators have elected not to do this work themselves and
+   instead outsourced it to third-party monitors.  Third-party monitors
+   represent a problematic break in the security guarantees of the
+   system, as there are no enforceable requirements on their behavior.
+   They are not audited for correct behavior like certificate
+   authorities are, and there are no technical mechanisms to prevent
+   misbehavior like a transparency log would have.  This has had the
+   real-world impact of undermining the claimed transparency guarantees
+   of these systems [ct-in-wild].
+
+   Key Transparency [I-D.draft-keytrans-mcmillion-protocol] augments a
+   transparency log with additional structure to allow efficient and
+   verifiable searches for specific data.  This allows server operators
+   to download only the contents of the transparency log that's relevant
+   to them, while still being able to guarantee that no certificates
+   have been issued for their domains that they are unaware of.  As a
+   result of the significantly reduced need for outbound bandwidth,
+   operating such a transparency log would cost (at minimum) one million
+   times less than it would otherwise.
+
 4.  Security Considerations
 
    TODO Security
@@ -204,7 +248,16 @@ Table of Contents
 
    This document has no IANA actions.
 
-6.  Normative References
+6.  References
+
+6.1.  Normative References
+
+   [I-D.draft-keytrans-mcmillion-protocol]
+              McMillion, B. and F. Linker, "Key Transparency Protocol",
+              Work in Progress, Internet-Draft, draft-keytrans-
+              mcmillion-protocol-01, 13 October 2024,
+              <https://datatracker.ietf.org/doc/html/draft-keytrans-
+              mcmillion-protocol-01>.
 
    [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
               Requirement Levels", BCP 14, RFC 2119,
@@ -214,6 +267,13 @@ Table of Contents
    [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
               2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
               May 2017, <https://www.rfc-editor.org/rfc/rfc8174>.
+
+6.2.  Informative References
+
+   [ct-in-wild]
+              Li, B., "Certificate Transparency in the Wild: Exploring
+              the Reliability of Monitors", 6 November 2019,
+              <https://dl.acm.org/doi/pdf/10.1145/3319535.3345653>.
 
 Acknowledgments
 
