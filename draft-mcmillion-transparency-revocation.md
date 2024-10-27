@@ -1,4 +1,4 @@
-
+---
 title: "Reliable Transparency and Revocation Mechanisms"
 category: info
 
@@ -89,6 +89,30 @@ the performance of TLS connections. Additionally, co-signing schemes provide no
 way to detect collusion after-the-fact without resorting to stateful
 verification.
 
+**Servers must provide proof directly to end-users that their certificate
+satisfies transparency requirements and isn't revoked.** If proof of
+transparency and non-revocation isn't provided by the server, it must be fetched
+from one or more third-party services. The primary issue with this is that it
+ties the server's global availability to the global availability of these
+third-party services, for which the server operator has no way to preempt or
+resolve deficiencies. As a result of this, proposals for transparency and
+revocation that rely on connectivity to third-party services have historically
+been required to fail open. That is, if the third-party service is inaccessible
+for too long of a period of time, the end-user stops enforcing these security
+properties altogether.
+
+In addition, given that we're primarily interested in describing a system that
+works equally well regardless of the end-user's software vendor, these
+third-party services may not be able to restrict access to a subset of
+end-users. They would receive regular requests from all internet-connected
+devices, which would present significant scaling and centralization concerns.
+
+**Servers must refresh their certificates regularly and automatically.** This is
+a direct consequence of the decision that servers must be responsible for
+providing end-users proof that their certificates are not revoked. If a server
+is not required to refresh its certificate, it can attempt to delay the end-user
+from learning about a change of its revocation status.
+
 **Revocation must be provided by the transparency system.** A CA can initiate
 revocation either by declining to sign new statements related to a certificate
 (for example, by not renewing a short-lived certificate or not creating an OCSP
@@ -102,8 +126,8 @@ this exhaustive knowledge, if it is not a transparency system, admits the
 possibility of split-view attacks which are not eventually detected. Split-view
 attacks in this context would allow a CA to mis-issue a certificate, claim to
 revoke it, and then maintain the certificate's utility by presenting different
-views of its revocation status to attack victims than to other participants. In
-essence, the possibility of such a split-view attack renders revocation an
+views of its revocation status to attack victims than to other participants. The
+possibility of such a split-view attack renders revocation a fundamentally
 ineffective tool for correcting mis-issuance.
 
 In the case where CAs initiate revocation by declining to sign new statements,
@@ -115,14 +139,14 @@ bounded by the longest conceivable outage that a CA may have (typically at least
 one week).
 
 When specifically considering short-lived certificates as an approach to
-revocation, their effectiveness relies on whether or not **all** certificates
-are required to be short-lived. If end-users enforce that all certificates are
+revocation, effectiveness depends on whether or not **all** certificates are
+required to be short-lived. If end-users enforce that all certificates are
 short-lived, and issuance is transparent, then revocation is provided by the
-transparency system. If certificates may be issued with longer lifespans, then a
-secondary revocation mechanism for these certificates is necessary. Considering
-solutions other than short-lived certificates, where the CA initiates revocation
-by declining to sign some statement, it's clear that the same potential for
-split-view attacks exists as discussed above.
+transparency system as claimed. If certificates may be issued with longer
+lifespans, then a secondary revocation mechanism for these certificates is
+necessary. Considering solutions other than short-lived certificates, where the
+CA initiates revocation by declining to sign some statement, it's clear that the
+same potential for split-view attacks exists as discussed above.
 
 
 # Security Considerations
