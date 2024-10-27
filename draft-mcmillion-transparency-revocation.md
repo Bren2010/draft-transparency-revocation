@@ -30,6 +30,12 @@ author:
 normative:
 
 informative:
+  ct-in-wild:
+    target: https://dl.acm.org/doi/pdf/10.1145/3319535.3345653
+    title: "Certificate Transparency in the Wild: Exploring the Reliability of Monitors"
+    date: 2019-11-06
+    author:
+      - name: Bingyu Li
 
 
 --- abstract
@@ -148,6 +154,41 @@ necessary. Considering solutions other than short-lived certificates, where the
 CA initiates revocation by declining to sign some statement, it's clear that the
 same potential for split-view attacks exists as discussed above.
 
+**Transparency logs must implement the Key Transparency protocol.** As stated at
+the beginning of this section, the goal of any transparency system is to ensure
+that data shown to one participant is equally visible to any other participant.
+An important aspect of this requirement is that server operators must be able to
+contact a transparency log and verifiably receive all of the certificates and
+revocations that are relevant to them.
+
+Most transparency systems require downloading the entirety of the log's contents
+to ensure that all potentially relevant entries are found. This quickly becomes
+prohibitively expensive for all parties. Currently roughly 7.5 million
+certificates are issued per day, with an average size of 3 kilobytes. This means
+that a site operator would need to download almost 700 gigabytes of certificates
+to cover a single month of issuance. Outbound bandwidth typically costs between
+1 to 9 cents per gigabyte, which means that providing this data to a single
+server operator would cost the transparency log between $6 to $60. For any
+reasonable estimate of the number of server operators on the internet, this
+represents an exceptional burden on a transparency log.
+
+In previously deployed systems, because of this exceptional cost, site operators
+have elected not to do this work themselves and instead outsourced it to
+third-party monitors. Third-party monitors represent a problematic break in the
+security guarantees of the system, as there are no enforceable requirements on
+their behavior. They are not audited for correct behavior like certificate
+authorities are, and there are no technical mechanisms to prevent misbehavior
+like a transparency log would have. This has had the real-world impact of
+undermining the claimed transparency guarantees of these systems {{ct-in-wild}}.
+
+Key Transparency {{!I-D.draft-keytrans-mcmillion-protocol}} augments a
+transparency log with additional structure to allow efficient and verifiable
+searches for specific data. This allows server operators to download only the
+contents of the transparency log that's relevant to them, while still being able
+to guarantee that no certificates have been issued for their domains that they
+are unaware of. As a result of the significantly reduced need for outbound
+bandwidth, operating such a transparency log would cost (at minimum) one million
+times less than it would otherwise.
 
 # Security Considerations
 
