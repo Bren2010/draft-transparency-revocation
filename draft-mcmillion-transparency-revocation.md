@@ -107,9 +107,9 @@ been required to fail open. That is, if the third-party service is inaccessible
 for too long of a period of time, the end-user stops enforcing these security
 properties altogether.
 
-In addition, given that we're primarily interested in describing a system that
-works equally well regardless of the end-user's software vendor, these
-third-party services may not be able to restrict access to a subset of
+A second issue is that, since we're primarily interested in describing a system
+that works equally well regardless of the end-user's software vendor, these
+third-party services might not be permitted to restrict access to a subset of
 end-users. They would receive regular requests from all internet-connected
 devices, which would present significant scaling and centralization concerns.
 
@@ -133,8 +133,9 @@ possibility of split-view attacks which are not eventually detected. Split-view
 attacks in this context would allow a CA to mis-issue a certificate, claim to
 revoke it, and then maintain the certificate's utility by presenting different
 views of its revocation status to attack victims than to other participants. The
-possibility of such a split-view attack renders revocation a fundamentally
-ineffective tool for correcting mis-issuance.
+possibility of such a split-view attack would render revocation fundamentally
+insufficient for correcting mis-issuance, and would create a need for a second
+(more effective) revocation mechanism.
 
 In the case where CAs initiate revocation by declining to sign new statements,
 this makes the CA a single point-of-failure for websites relying on it. A
@@ -149,7 +150,7 @@ revocation, effectiveness depends on whether or not **all** certificates are
 required to be short-lived. If end-users enforce that all certificates are
 short-lived, and issuance is transparent, then revocation is provided by the
 transparency system as claimed. If certificates may be issued with longer
-lifespans, then a secondary revocation mechanism for these certificates is
+lifespans, then a second revocation mechanism for these certificates is
 necessary. Considering solutions other than short-lived certificates, where the
 CA initiates revocation by declining to sign some statement, it's clear that the
 same potential for split-view attacks exists as discussed above.
@@ -187,8 +188,8 @@ searches for specific data. This allows server operators to download only the
 contents of the transparency log that's relevant to them, while still being able
 to guarantee that no certificates have been issued for their domains that they
 are unaware of. As a result of the significantly reduced need for outbound
-bandwidth, operating such a transparency log would cost (at minimum) one million
-times less than it would otherwise.
+bandwidth, operating such a transparency log would cost around one million times
+less than it would otherwise.
 
 # Security Considerations
 
