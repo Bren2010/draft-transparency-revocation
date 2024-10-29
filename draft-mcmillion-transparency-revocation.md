@@ -8,8 +8,8 @@ number:
 date:
 consensus: true
 v: 3
-# area: AREA
-# workgroup: WG Working Group
+area: SEC
+workgroup: TLS Working Group
 keyword:
  - next generation
  - unicorn
@@ -40,14 +40,51 @@ informative:
 
 --- abstract
 
-TODO Abstract
-
+This document describes reliable mechanisms for the publication and revocation
+of Transport Layer Security (TLS) certificates.  This reliability takes several
+forms. First, it provides browsers the ability to efficiently guarantee that all
+certificates they accept are truly published and unrevoked at the time they're
+accepted. Second, it provides website operators with highly efficient tools to
+monitor for mis-issuances related to their domain names. Third, it provides a
+high degree of operational redundancy to minimize the risk of cascading outages.
 
 --- middle
 
 # Introduction
 
-TODO Introduction
+The Certificate Transparency (CT) ecosystem created by {{?RFC6962}} has been
+immensely valuable to security on the internet. However, various cracks have
+formed in the design over time:
+
+The security that CT provides to verifiers is based on an assumption of
+non-collusion between multiple parties. Historically, this assumption has been
+challenging to maintain, as it degrades quickly without active management. The
+compromise of a single Transparency Log or the unexpected acquisition of a
+single business is often sufficient to allow the possibility of undetected
+mis-issued certificates. This is compounded by the fact that multiple parties in
+the CT ecosystem play multiple roles (such as Certificate Authorities that are
+also Transparency Log operators that are also browser vendors), which makes
+reasoning about the possibility of collusion even more tricky.
+
+It is also becoming far too expensive to both operate a CT log, and to monitor
+CT logs. Logs are required to serve their entire contents to anyone on the
+internet, which consumes a significant amount of outbound bandwidth. Inversely,
+monitoring certificate issuance in CT requires downloading the entire contents
+of all logs, which is several terabytes of data at minimum.
+
+The flip side of publishing certificates is reliably revoking the mis-issued
+certificates that are identified by site operators. However, revocation on the
+web has historically been plagued by a requirement to "fail open". That is,
+revocation checks would stop being enforced in certain (often, easily
+engineered) scenarios. For example, if the server didn't proactively offer proof
+of non-revocation or if a third-party service was inaccessible for too long,
+this might cause revocation checks to be disabled. One promising exception to
+this general principle, OCSP Must-Staple {{?RFC7633}}, has unfortunately been
+the victim of waning support for OCSP by Certificate Authorities.
+
+This motivates a need for a new system of publishing certificates that's
+resistant to collusion and dramatically more efficient to operate, and a need
+for a new system of revoking certificates that can be reliably enforced.
 
 
 # Conventions and Definitions
