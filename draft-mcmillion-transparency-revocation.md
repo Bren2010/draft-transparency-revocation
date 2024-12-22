@@ -42,25 +42,26 @@ informative:
 
 This document describes reliable mechanisms for the publication and revocation
 of Transport Layer Security (TLS) certificates.  This reliability takes several
-forms. First, it provides browsers the ability to efficiently guarantee that all
-certificates they accept are truly published and unrevoked at the time they're
-accepted. Second, it provides website operators with highly efficient tools to
-monitor for mis-issuances related to their domain names. Third, it provides a
-high degree of operational redundancy to minimize the risk of cascading outages.
+forms. First, it provides browsers a strong guarantee that all certificates they
+accept are truly published and unrevoked at the time they're accepted. Second,
+it allows website operators to monitor for mis-issuances related to their
+domains in a highly efficient way, without relying on third-party services.
+Third, it provides a high degree of operational redundancy to minimize the risk
+of cascading outages.
 
 --- middle
 
 # Introduction
 
 The Certificate Transparency (CT) ecosystem created by {{?RFC6962}} has been
-immensely valuable to security on the internet. However, various cracks have
-formed in the design over time:
+immensely valuable to security on the internet. However, various cracks in the
+design have become apparent over time:
 
 The security that CT provides to verifiers is based on an assumption of
 non-collusion between multiple parties. Historically, this assumption has been
 challenging to maintain, as it degrades quickly without active management. The
 compromise of a single Transparency Log or the unexpected acquisition of a
-single business is often sufficient to allow the possibility of undetected
+single business is often sufficient to allow the possibility of undetectable
 mis-issued certificates. This is compounded by the fact that multiple parties in
 the CT ecosystem play multiple roles (such as Certificate Authorities that are
 also Transparency Log operators that are also browser vendors), which makes
@@ -73,8 +74,8 @@ monitoring certificate issuance in CT requires downloading the entire contents
 of all logs, which is several terabytes of data at minimum.
 
 The flip side of publishing certificates is reliably revoking the mis-issued
-certificates that are identified by site operators. However, revocation on the
-web has historically been plagued by a requirement to "fail open". That is,
+certificates that are identified by site operators. However, revocation systems
+have historically been plagued by a requirement to "fail open". That is,
 revocation checks would stop being enforced in certain (often, easily
 engineered) scenarios. For example, if the server didn't proactively offer proof
 of non-revocation or if a third-party service was inaccessible for too long,
@@ -94,10 +95,48 @@ for a new system of revoking certificates that can be reliably enforced.
 
 # Architecture
 
+The system has several roles, which we describe in more detail below. Parties
+are allowed to assume multiple roles.
+
+**Certificate Authority:**
+: A trusted service that performs domain-control validation and authenticates
+  certificates and revocations.
+
+**Transparency Log:**
+: An untrusted service that provides an append-only, publicly-auditable log of
+  certificates and revocations issued by a wide range of Certificate
+  Authorities.
+
+**Site Operator:**
+: The individual or organization responsible for the operation and maintenance
+  of a website, identified by a single domain name.
+
+**User Agent:**
+: A software application, typically a web browser, that acts on behalf of a user
+  to access and interact with websites.
+
 ## Requirements
 
 The following baseline requirements for the system are as follows:
 
+1. For a certificate to be mis-issued and not eventually published: two trusted
+   parties must collude and all verifiers that observed the certificate must be
+   stateless
+2. Violations of the transparency guarantee must have a high potential for
+   after-the-fact detection by stateful verifiers.
+3. It must be reasonably efficient for site operators to audit all trusted
+   Certificate Authorities for mis-issuances affecting their domain names.
+4. The system must not have any single points of failure, other than those in
+   the web PKI as it exists today.
+5. End-users must be able to connect to a server without having immediate
+   connectivity to third-party services.
+6. The domain names of websites visited by the end-user must not be leaked,
+   other than how they are in the web PKI as it exists today.
+7. The system must be reasonable for non-browser user agents to deploy.
+8. The system must have a reasonable path to scale indefinitely.
+
+These requirements and their main consequences are discussed in more detail in
+the following subsection.
 
 ## Discussion
 
@@ -105,32 +144,31 @@ The following baseline requirements for the system are as follows:
 transparency system is to ensure that data shown to one participant is equally
 visible to any other participant. This generally involves the use of a
 "transparency log" that publishes data, and may or may not have additional
-structure to support efficient searches for specific data. For end-users to
-verify that data they've observed is properly published by the log, they must
-maintain state to ensure that the views of the log they're shown are linear (in
-terms of not containing forks) and internally-consistent (with respect to any
-rules the log may have about its content or structure). In addition to ensuring
-that the various views of the log that an end-user has seen are linear,
-end-users must also *gossip* their view of the log with a wide range of other
-parties. Gossiping allows end-users to detect when they've been shown a fork of
-the log, which could potentially contain malicious data that other participants
-in the system are unaware of.
+structure to support efficient searches for specific data. Transparency Logs
+must be verified to be linear, in terms of being append-only, and
+internally-consistent with respect to any rules that the log may have about its
+content or structure. Without relying on a third-party to verify these
+properties, which may collude with the Transparency Log, end-users must retain
+state to verify these properties themselves. In addition to ensuring that the
+various views of the log that an end-user has seen are linear and
+internally-consistent, end-users must also *gossip* their view of the log with a
+wide range of other parties. Gossiping allows end-users to detect when they've
+been shown a fork of the log that could potentially contain malicious data
+that other participants in the system are unaware of.
 
-Transparency systems that lack stateful verification, where end-users verify
-that past views of the log are consistent with current views, are more
-accurately termed "co-signing" schemes. That is because, with stateless
-verification, the security of any such construction reduces solely to successful
-verification of the transparency log's signature on a claim. The transparency
-guarantees of co-signing schemes can be undermined by collusion between the
-co-signers (in the web PKI, the co-signers would be a CA and one or more
-transparency logs). The highly diverse and rapidly changing nature of the web
-makes collusion between participants easy to achieve and difficult to detect.
-This makes co-signing schemes generally unsuitable for use in the web PKI
-without requiring a multitude of co-signers. However, transmitting a multitude
-of signatures from larger, PQ-secure signature schemes can measurably degrade
-the performance of TLS connections. Additionally, co-signing schemes provide no
-way to detect collusion after-the-fact without resorting to stateful
-verification.
+Transparency systems based on stateless verification are more accurately termed
+"co-signing" schemes. That's because, with stateless verification, the security
+of any such construction reduces solely to successful verification of the
+transparency log's signature on a claim. The transparency guarantees of
+co-signing schemes can be undermined by collusion between the co-signers. In the
+web PKI, the co-signers would be a CA and one or more transparency logs. The
+diverse and rapidly changing nature of the web makes collusion between
+participants easy to achieve and difficult to detect. As such, co-signing
+schemes generally unsuitable for use in the web PKI without requiring a
+multitude of co-signers. However, transmitting a multitude of signatures from
+larger, PQ-secure signature schemes can measurably degrade the performance of
+TLS connections. Additionally, co-signing schemes provide no way to detect
+collusion after the fact without resorting to stateful verification.
 
 **Servers must provide proof directly to end-users that their certificate
 satisfies transparency requirements and isn't revoked.** If proof of
@@ -195,7 +233,7 @@ same potential for split-view attacks exists as discussed above.
 **Transparency logs must implement the Key Transparency protocol.** As stated at
 the beginning of this section, the goal of any transparency system is to ensure
 that data shown to one participant is equally visible to any other participant.
-An important aspect of this requirement is that server operators must be able to
+An important aspect of this requirement is that site operators must be able to
 contact a transparency log and verifiably receive all of the certificates and
 revocations that are relevant to them.
 
@@ -206,8 +244,8 @@ certificates are issued per day, with an average size of 3 kilobytes. This means
 that a site operator would need to download almost 700 gigabytes of certificates
 to cover a single month of issuance. Outbound bandwidth typically costs between
 1 to 9 cents per gigabyte, which means that providing this data to a single
-server operator would cost the transparency log between $6 to $60. For any
-reasonable estimate of the number of server operators on the internet, this
+site operator would cost the transparency log between $6 to $60. For any
+reasonable estimate of the number of site operators on the internet, this
 represents an exceptional burden on a transparency log.
 
 In previously deployed systems, because of this exceptional cost, site operators
@@ -219,14 +257,14 @@ authorities are, and there are no technical mechanisms to prevent misbehavior
 like a transparency log would have. This has had the real-world impact of
 undermining the claimed transparency guarantees of these systems {{ct-in-wild}}.
 
-Key Transparency {{!I-D.draft-keytrans-mcmillion-protocol}} augments a
-transparency log with additional structure to allow efficient and verifiable
-searches for specific data. This allows server operators to download only the
-contents of the transparency log that's relevant to them, while still being able
-to guarantee that no certificates have been issued for their domains that they
-are unaware of. As a result of the significantly reduced need for outbound
-bandwidth, operating such a transparency log would cost around one million times
-less than it would otherwise.
+Key Transparency {{!I-D.draft-ietf-keytrans-protocol}} augments a transparency log
+with additional structure to allow efficient and verifiable searches for
+specific data. This allows server operators to download only the contents of the
+transparency log that's relevant to them, while still being able to guarantee
+that no certificates have been issued for their domains that they are unaware
+of. As a result of the significantly reduced need for outbound bandwidth,
+operating such a transparency log would cost around one million times less than
+it would otherwise.
 
 # Security Considerations
 
