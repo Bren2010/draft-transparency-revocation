@@ -266,6 +266,66 @@ of. As a result of the significantly reduced need for outbound bandwidth,
 operating such a transparency log would cost around one million times less than
 it would otherwise.
 
+## Summary
+
+In summary, the system described in this document works as follows:
+
+- Site Operators obtain a certificate from a Certificate Authority and submit it
+  to one of many trusted Transparency Logs to obtain a proof of inclusion.
+- End-Users that contact the Site Operator's server over TLS receive the
+  certificate and proof of inclusion. End-Users verify that the proof of
+  inclusion is sufficiently recent and that the certificate is unrevoked.
+- As time goes on, the current proof of inclusion will become stale. Site
+  Operators refresh their proof of inclusion by requesting a new one from the
+  Transparency Log.
+- At any time in the background, the Site Operator may query the Transparency
+  Log and verifiably learn about all new certificates issued for their domain.
+
+The remainder of this document describes these steps in more detail.
+
+# Transparency Log
+
+Transparency Logs generally communicate only with Site Operators. Site Operators
+regularly issue requests to the Transparency Log's endpoints to either obtain
+fresh proofs of inclusion for their certificates, or to monitor for
+mis-issuances affecting their domain names.
+
+While a Transparency Log may be operated by a Certificate Authority,
+Transparency Logs SHOULD accept certificates issued by a broad set of the
+current widely-trusted Certificate Authorities. This ensures that, if one
+Transparency Log has an outage, there are several other Transparency Logs that
+Site Operators can fallback on for the purpose of fetching a fresh proof of
+inclusion.
+
+## Endpoints
+
+Transparency Logs expose the following endpoints over HTTP or HTTPS. Which
+endpoint is being accessed is determined by the request's method and path.
+Request and response bodies are JSON-encoded structures.
+
+### Trusted Roots
+
+GET /trusted-roots
+
+The request body is empty. The output is an array of base64-encoded root
+certificates. The presence of a root certificate in this list indicates that the
+Transparency Log will accept certificates that chain to that root. However, it
+is not a guarantee.
+
+### Adding an Entry
+
+POST /add-certificate
+
+The request body is an array of base64-encoded certificates. The first
+certificate is a leaf certificate, the subsequent certificate is the one that
+issued the leaf certificate, and so on. The final element of the array is issued
+by one of the roots trusted by the Transparency Log.
+
+### Refreshing an Inclusion Proof
+### Monitoring a Label
+
+# TLS Client-Server Protocol
+
 # Security Considerations
 
 TODO Security
