@@ -9,28 +9,29 @@
 <meta content="
        This document describes reliable mechanisms for the publication and revocation
 of Transport Layer Security (TLS) certificates.  This reliability takes several
-forms. First, it provides browsers the ability to efficiently guarantee that all
-certificates they accept are truly published and unrevoked at the time they're
-accepted. Second, it provides website operators with highly efficient tools to
-monitor for mis-issuances related to their domain names. Third, it provides a
-high degree of operational redundancy to minimize the risk of cascading outages. 
+forms. First, it provides browsers a strong guarantee that all certificates they
+accept are truly published and unrevoked at the time they're accepted. Second,
+it allows website operators to monitor for mis-issuances related to their
+domains in a highly efficient way, without relying on third-party services.
+Third, it provides a high degree of operational redundancy to minimize the risk
+of cascading outages. 
     " name="description">
-<meta content="xml2rfc 3.23.2" name="generator">
+<meta content="xml2rfc 3.25.0" name="generator">
 <meta content="next generation" name="keyword">
 <meta content="unicorn" name="keyword">
 <meta content="sparkling distributed ledger" name="keyword">
 <meta content="draft-mcmillion-transparency-revocation-latest" name="ietf.draft">
 <!-- Generator version information:
-  xml2rfc 3.23.2
-    Python 3.12.7
+  xml2rfc 3.25.0
+    Python 3.12.8
     ConfigArgParse 1.7
     google-i18n-address 3.1.1
     intervaltree 3.1.0
-    Jinja2 3.1.4
-    lxml 4.9.4
+    Jinja2 3.1.5
+    lxml 5.3.0
     platformdirs 4.3.6
-    pycountry 22.3.5
-    PyYAML 6.0.1
+    pycountry 24.6.1
+    PyYAML 6.0.2
     requests 2.32.3
     setuptools 70.3.0
     wcwidth 0.2.13
@@ -286,6 +287,12 @@ body {
 }
 
 /* headings */
+section {
+  clear: both;
+}
+.section-number {
+  padding-right: 0.5em;
+}
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-title);
   font-weight: 680;
@@ -317,6 +324,7 @@ h4, h5, h6 {
 /* general structure */
 .author {
   padding-bottom: 0.3em;
+  vertical-align: top;
 }
 #abstract+p {
   font-size: 18px;
@@ -394,25 +402,26 @@ svg[font-family~="monospace" i], svg [font-family~="monospace" i] {
 ol, ul {
   padding: 0;
   margin: 0 0 0.5em 2em;
-}
-:is(ol, ul) :is(ol, ul) {
-  margin-left: 1em;
+  & :is(ol, ul) {
+    margin-left: 1em;
+  }
 }
 li {
   margin: 0 0 0.25em 0;
 }
-.ulCompact li {
-  margin: 0;
-}
 ul.empty, .ulEmpty {
   list-style-type: none;
-}
-ul.empty li, .ulEmpty li {
-  margin-top: 0.5em;
+  & li {
+    margin-top: 0.5em;
+  }
 }
 :is(ul, ol).compact, .ulCompact, .olCompact {
-  line-height: 1;
   margin: 0 0 0 2em;
+  & li {
+    margin: 0;
+    & :first-child { margin-top: 0; }
+    & :last-child { margin-bottom: 0; }
+  }
 }
 
 /* definition lists */
@@ -420,38 +429,39 @@ dl {
   clear: left;
   --indent: 3ch;
   /* --indent: attr(indent ch); not supported in any browser, but we can dream */
-}
-dl.olPercent {
-  --indent: 5ch;
+  &.olPercent {
+    --indent: 5ch;
+    & > dt {
+      min-width: calc(var(--indent) - 2ch);
+    }
+  }
+  &.olPercent > dt {
+    float: none;
+  }
+
+  dl > dd > & {
+    margin-top: 0.5em;
+    margin-bottom: 0;
+  }
 }
 dl > dt {
   float: left;
   margin-right: 2ch;
   min-width: 8ch;
 }
-dl.dlNewline > dt {
-  float: none;
-}
 dl > dd {
   margin-bottom: .8em;
   margin-left: var(--indent) !important; /* stupid element overrides */
   min-height: 2ex;
 }
-dl.olPercent > dt {
-  min-width: calc(var(--indent) - 2ch);
-}
 :is(dl.compact, .dlCompact) > dd {
   margin-bottom: 0;
-}
-:is(dl.compact, .dlCompact) > dd > :is(:first-child, .break:first-child + *) {
-  margin-top: 0;
-}
-:is(dl.compact, .dlCompact) > dd > :is(:last-child) {
-  margin-bottom: 0;
-}
-dl > dd > dl {
-  margin-top: 0.5em;
-  margin-bottom: 0;
+  & > :is(:first-child, .break:first-child + *) {
+    margin-top: 0;
+  }
+  & > :is(:last-child) {
+    margin-bottom: 0;
+  }
 }
 :is(dd, span).break {
   display: none;
@@ -515,6 +525,7 @@ figcaption, caption {
   font-style: italic;
   margin: 0.5em 1.5em;
   text-align: left;
+  caption-side: bottom;
 }
 @media screen {
   /* Auto-collapse boilerplate. */
@@ -532,7 +543,11 @@ figcaption, caption {
   }
   pre, svg {
     display: inline-block;
-    overflow-x: auto;
+    /* In the horizontal direction, sometimes people make over-sized figures.
+       Scrollbars for those is therefore necessary: auto adds them as necessary..
+       In the vertical direction, the line-height can combine with the font
+       asender/descender height to produce scrollbars: hidden avoids that. */
+    overflow: auto hidden;
   }
   pre {
     max-width: 100%;
@@ -569,6 +584,7 @@ cite {
 
 /* tables */
 table {
+  width: auto;
   max-width: 100%;
   margin: 0 0 1em;
   border-collapse: collapse;
@@ -583,6 +599,16 @@ table.center {
 table.left {
   margin-right: auto;
 }
+table .text-left {
+  text-align: left;
+}
+table .text-center {
+  text-align: center;
+}
+table .text-right {
+  text-align: right;
+}
+
 thead, tbody {
   border: 1px solid var(--line-color);
 }
@@ -613,9 +639,11 @@ a.pilcrow {
   margin-left: 3px;
   opacity: 0.2;
   user-select: none;
+  &[href] {
+    color: var(--pilcrow-weak);
+    &:hover { text-decoration: none; }
+  }
 }
-a.pilcrow[href] { color: var(--pilcrow-weak); }
-a.pilcrow[href]:hover { text-decoration: none; }
 @media not print {
   :hover > a.pilcrow {
     opacity: 1;
@@ -655,26 +683,28 @@ sub, sup {
   font-size: var(--small-font-size);
   line-height: 18px;
   --identifier-width: 15ch;
-}
-#identifiers dt {
-  width: var(--identifier-width);
-  min-width: var(--identifier-width);
-  clear: left;
-  float: left;
-  text-align: right;
-  margin-right: 1ch;
-}
-#identifiers dd {
-  margin: 0;
-  margin-left: calc(1em + var(--identifier-width)) !important;
-  min-width: 5em;
-}
-#identifiers .authors .author {
-  display: inline-block;
-  margin-right: 1.5em;
-}
-#identifiers .authors .org {
-  font-style: italic;
+  & dt {
+    width: var(--identifier-width);
+    min-width: var(--identifier-width);
+    clear: left;
+    float: left;
+    text-align: right;
+    margin-right: 1ch;
+  }
+  & dd {
+    margin: 0;
+    margin-left: calc(1em + var(--identifier-width)) !important;
+    min-width: 5em;
+  }
+  & .authors {
+    & .author {
+      display: inline-block;
+      margin-right: 1.5em;
+    }
+    & .org {
+      font-style: italic;
+    }
+  }
 }
 
 /* The prepared/rendered info at the very bottom of the page */
@@ -685,9 +715,6 @@ sub, sup {
   margin-top: 2em;
 }
 .docInfo .prepared {
-  float: left;
-}
-.docInfo .prepared {
   float: right;
 }
 
@@ -695,53 +722,48 @@ sub, sup {
 #toc {
   padding: 0.75em 0 2em 0;
   margin-bottom: 1em;
-}
-@media screen {
-  #toc nav {
-    font-family: var(--font-title);
-    font-weight: 360;
+
+  & nav {
+    & ul {
+      margin: 0 0.5em 0 0;
+      padding: 0;
+      list-style: none;
+    }
+    & li {
+      line-height: 1.3em;
+      margin: 2px 0;
+      padding-left: 1.2em;
+      text-indent: -1.2em;
+    }
+  }
+  & a.xref {
+    white-space: normal;
   }
 }
-#toc nav ul {
-  margin: 0 0.5em 0 0;
-  padding: 0;
-  list-style: none;
-}
-#toc nav li {
-  line-height: 1.3em;
-  margin: 2px 0;
-  padding-left: 1.2em;
-  text-indent: -1.2em;
-}
-#toc a.xref {
-  white-space: normal;
-}
-/* references */
-.references dt {
-  text-align: right;
-  font-weight: bold;
-  min-width: 10ch;
-  margin-right: 1.5ch;
-}
-.references dt:target::before {
-  content: "⇒";
-  width: 15px;
-  margin: 0 10px 0 -25px;
-}
-.references dd {
-  margin-left: 12ch !important;
-  overflow: auto;
+
+.references {
+  & > dt {
+    text-align: right;
+    font-weight: bold;
+    min-width: 10ch;
+    margin-right: 1.5ch;
+    &:target::before {
+      content: "⇒";
+      margin: 0 10px 0 -25px;
+    }
+  }
+  & > dd {
+    margin-left: 12ch !important;
+    overflow: visible;
+    & .refInstance {
+      margin-bottom: 0.8em;
+    }
+    & .ascii {
+      margin-bottom: 0.25em;
+    }
+  }
 }
 
-.refInstance {
-  margin-bottom: 1.25em;
-}
-
-.references .ascii {
-  margin-bottom: 0.25em;
-}
-
-/* index */
 #rfc\.index\.index + ul {
   margin-left: 0;
 }
@@ -749,21 +771,33 @@ sub, sup {
 /* authors */
 address.vcard {
   font-style: normal;
-  margin: 1em 0;
+  max-width: 20em;
+  margin: 1em auto 1em 0;
+
+  & .nameRole {
+    font-weight: 700;
+    margin-left: 0;
+  }
+  & .label {
+    margin: 0.5em 0;
+  }
+  & .type {
+    display: none;
+  }
+  & .alternative-contact {
+    margin: 0.5em 0 0.25em 0;
+  }
+  & .non-ascii {
+    margin: 0 0 0 2em;
+  }
+  & div.left {
+    text-align: left;
+  }
+  & div.right {
+    text-align: right;
+  }
 }
-address.vcard .nameRole {
-  font-weight: 700;
-  margin-left: 0;
-}
-address.vcard .label {
-  margin: 0.5em 0;
-}
-address.vcard .type {
-  display: none;
-}
-.alternative-contact {
-  margin: 1.5em 0 1em;
-}
+
 hr.addr {
   border-top: 1px dashed;
   margin: 0;
@@ -785,6 +819,7 @@ hr.addr {
   }
 }
 
+/* Comments */
 .rfcEditorRemove p:first-of-type {
   font-style: italic;
 }
@@ -795,7 +830,31 @@ hr.addr {
 .crefSource {
   font-style: italic;
 }
-/* alternative layout for smaller screens */
+
+@media screen {
+  #toc nav {
+    font-family: var(--font-title);
+    font-weight: 360;
+    & > ul { margin-bottom: 2em; }
+    & ul {
+      margin: 0 0 0 4px;
+      & :is(p, li) {
+        margin: 2px 0;
+      }
+    }
+  }
+  #toc a.toplink {
+    float: right;
+  }
+}
+@media not screen {
+  #toc a.toplink {
+    display: none;
+  }
+}
+
+
+/* TOC layout for smaller screens */
 @media screen and (max-width: 929px) {
   #toc {
     position: fixed;
@@ -806,9 +865,6 @@ hr.addr {
     margin: 0;
     border-bottom: 1px solid #ccc;
     opacity: 0.6;
-  }
-  #toc.active {
-      opacity: 1;
   }
   #toc h2 {
     margin: 0;
@@ -821,17 +877,17 @@ hr.addr {
     background-color: #444;
     color: white;
     cursor: pointer;
-  }
-  #toc h2::before { /* css hamburger */
-    float: right;
-    position: relative;
-    width: 1em;
-    height: 1px;
-    left: -164px;
-    margin: 8px 0 0 0;
-    background: white none repeat scroll 0 0;
-    box-shadow: 0 4px 0 0 white, 0 8px 0 0 white;
-    content: "";
+    &::before { /* css hamburger */
+      float: right;
+      position: relative;
+      width: 1em;
+      height: 1px;
+      left: -164px;
+      margin: 8px 0 0 0;
+      background: white none repeat scroll 0 0;
+      box-shadow: 0 4px 0 0 white, 0 8px 0 0 white;
+      content: "";
+    }
   }
   #toc nav {
     display: none;
@@ -842,14 +898,13 @@ hr.addr {
     height: calc(100vh - 48px);
     border-left: 1px solid #ddd;
   }
-  #toc.active nav {
-    display: block;
+  #toc.active {
+    opacity: 1;
+    & nav { display: block; }
   }
   /* Make the collapsed ToC header render white on gray also when it's a link */
   #toc h2 a,
-  #toc h2 a:link,
-  #toc h2 a:focus,
-  #toc h2 a:hover,
+  #toc h2 a:is(:link, :focus, :hover),
   #toc a.toplink,
   #toc a.toplink:hover {
     color: white;
@@ -857,11 +912,11 @@ hr.addr {
     text-decoration: none;
   }
   #toc a.toplink {
-    margin-top: 2px;
+    margin: 2px 0.5em 0;
   }
 }
 
-/* alternative layout for wide screens */
+/* TOC layout for wide screens */
 @media screen and (min-width: 930px) {
   body {
     padding-right: 360px;
@@ -890,20 +945,12 @@ hr.addr {
     overscroll-behavior: contain;
     scrollbar-width: thin;
   }
-  #toc nav > ul  {
-    margin-bottom: 2em;
-  }
-  #toc ul {
-    margin: 0 0 0 4px;
-    font-size: var(--small-font-size);
-  }
-  #toc ul :is(p, li) {
-    margin: 2px 0;
-    line-height: 22px;
-  }
   img { /* future proofing */
     max-width: 100%;
     height: auto;
+  }
+  #toc a.toplink {
+    margin: 8px 0.5em 0;
   }
 }
 
@@ -946,9 +993,6 @@ hr.addr {
   td {
     border-top: 1px solid #ddd;
   }
-  .toplink {
-    display: none;
-  }
 }
 
 @page :first {
@@ -971,82 +1015,6 @@ hr.addr {
   size: A4;
   margin-bottom: 45mm;
   padding-top: 20px;
-}
-
-/* Changes introduced to fix issues found during implementation */
-
-/* Separate body from document info even without intervening H1 */
-section {
-  clear: both;
-}
-
-/* Top align author divs, to avoid names without organization dropping level with org names */
-.author {
-  vertical-align: top;
-}
-
-/* Style section numbers with more space between number and title */
-.section-number {
-  padding-right: 0.5em;
-}
-
-/* Add styling for a link in the ToC that points to the top of the document */
-a.toplink {
-  float: right;
-  margin: 8px 0.5em 0;
-}
-
-/* Provide styling for table cell text alignment */
-table .text-left {
-  text-align: left;
-}
-table .text-center {
-  text-align: center;
-}
-table .text-right {
-  text-align: right;
-}
-
-/* Make the alternative author contact information look less like just another
-   author, and group it closer with the primary author contact information */
-.alternative-contact {
-  margin: 0.5em 0 0.25em 0;
-}
-address .non-ascii {
-  margin: 0 0 0 2em;
-}
-
-/* With it being possible to set tables with alignment
-  left, center, and right, { width: 100%; } does not make sense */
-table {
-  width: auto;
-}
-
-/* Avoid reference text that sits in a block with very wide left margin,
-   because of a long floating dt label.*/
-.references dd {
-  overflow: visible;
-}
-
-/* Control caption placement */
-caption {
-  caption-side: bottom;
-}
-
-/* Limit the width of the author address vcard, so names in right-to-left
-   script don't end up on the other side of the page. */
-
-address.vcard {
-  max-width: 20em;
-  margin-right: auto;
-}
-
-/* For address alignment dependent on LTR or RTL scripts */
-address div.left {
-  text-align: left;
-}
-address div.right {
-  text-align: right;
 }
 
 /* Dark mode. */
@@ -1085,11 +1053,11 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <thead><tr>
 <td class="left">Internet-Draft</td>
 <td class="center">Reliable Transparency and Revocation Mec</td>
-<td class="right">October 2024</td>
+<td class="right">January 2025</td>
 </tr></thead>
 <tfoot><tr>
 <td class="left">McMillion</td>
-<td class="center">Expires 2 May 2025</td>
+<td class="center">Expires 18 July 2025</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1102,12 +1070,12 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <dd class="internet-draft">draft-mcmillion-transparency-revocation-latest</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2024-10-29" class="published">29 October 2024</time>
+<time datetime="2025-01-14" class="published">14 January 2025</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Informational</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2025-05-02">2 May 2025</time></dd>
+<dd class="expires"><time datetime="2025-07-18">18 July 2025</time></dd>
 <dt class="label-authors">Author:</dt>
 <dd class="authors">
 <div class="author">
@@ -1121,11 +1089,12 @@ svg :is([fill="white"], [fill^="#fff"]) {
       <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
 <p id="section-abstract-1">This document describes reliable mechanisms for the publication and revocation
 of Transport Layer Security (TLS) certificates.  This reliability takes several
-forms. First, it provides browsers the ability to efficiently guarantee that all
-certificates they accept are truly published and unrevoked at the time they're
-accepted. Second, it provides website operators with highly efficient tools to
-monitor for mis-issuances related to their domain names. Third, it provides a
-high degree of operational redundancy to minimize the risk of cascading outages.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+forms. First, it provides browsers a strong guarantee that all certificates they
+accept are truly published and unrevoked at the time they're accepted. Second,
+it allows website operators to monitor for mis-issuances related to their
+domains in a highly efficient way, without relying on third-party services.
+Third, it provides a high degree of operational redundancy to minimize the risk
+of cascading outages.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
 </section>
 <section class="note rfcEditorRemove" id="section-note.1">
       <h2 id="name-about-this-document">
@@ -1157,7 +1126,7 @@ high degree of operational redundancy to minimize the risk of cascading outages.
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 2 May 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 18 July 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1166,7 +1135,7 @@ high degree of operational redundancy to minimize the risk of cascading outages.
 <a href="#name-copyright-notice" class="section-name selfRef">Copyright Notice</a>
         </h2>
 <p id="section-boilerplate.2-1">
-            Copyright (c) 2024 IETF Trust and the persons identified as the
+            Copyright (c) 2025 IETF Trust and the persons identified as the
             document authors. All rights reserved.<a href="#section-boilerplate.2-1" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.2-2">
             This document is subject to BCP 78 and the IETF Trust's Legal
@@ -1201,30 +1170,55 @@ high degree of operational redundancy to minimize the risk of cascading outages.
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.2">
                 <p id="section-toc.1-1.3.2.2.1"><a href="#section-3.2" class="auto internal xref">3.2</a>.  <a href="#name-discussion" class="internal xref">Discussion</a></p>
 </li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.3">
+                <p id="section-toc.1-1.3.2.3.1"><a href="#section-3.3" class="auto internal xref">3.3</a>.  <a href="#name-summary" class="internal xref">Summary</a></p>
+</li>
             </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4">
-            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
-</li>
-          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
-            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
-</li>
-          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
-            <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-references" class="internal xref">References</a></p>
+            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-transparency-log" class="internal xref">Transparency Log</a></p>
 <ul class="compact toc ulBare ulEmpty">
-<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.1">
-                <p id="section-toc.1-1.6.2.1.1"><a href="#section-6.1" class="auto internal xref">6.1</a>.  <a href="#name-normative-references" class="internal xref">Normative References</a></p>
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1">
+                <p id="section-toc.1-1.4.2.1.1"><a href="#section-4.1" class="auto internal xref">4.1</a>.  <a href="#name-structure" class="internal xref">Structure</a></p>
 </li>
-              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.2">
-                <p id="section-toc.1-1.6.2.2.1"><a href="#section-6.2" class="auto internal xref">6.2</a>.  <a href="#name-informative-references" class="internal xref">Informative References</a></p>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2">
+                <p id="section-toc.1-1.4.2.2.1"><a href="#section-4.2" class="auto internal xref">4.2</a>.  <a href="#name-endpoints" class="internal xref">Endpoints</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2.2.1">
+                    <p id="section-toc.1-1.4.2.2.2.1.1"><a href="#section-4.2.1" class="auto internal xref">4.2.1</a>.  <a href="#name-get-puzzle" class="internal xref">Get Puzzle</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2.2.2">
+                    <p id="section-toc.1-1.4.2.2.2.2.1"><a href="#section-4.2.2" class="auto internal xref">4.2.2</a>.  <a href="#name-add-certificate" class="internal xref">Add Certificate</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2.2.3">
+                    <p id="section-toc.1-1.4.2.2.2.3.1"><a href="#section-4.2.3" class="auto internal xref">4.2.3</a>.  <a href="#name-refreshing-an-inclusion-pro" class="internal xref">Refreshing an Inclusion Proof</a></p>
+</li>
+                </ul>
 </li>
             </ul>
 </li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
+            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
+            <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
+</li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7">
-            <p id="section-toc.1-1.7.1"><a href="#appendix-A" class="auto internal xref"></a><a href="#name-acknowledgments" class="internal xref">Acknowledgments</a></p>
+            <p id="section-toc.1-1.7.1"><a href="#section-7" class="auto internal xref">7</a>.  <a href="#name-references" class="internal xref">References</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.1">
+                <p id="section-toc.1-1.7.2.1.1"><a href="#section-7.1" class="auto internal xref">7.1</a>.  <a href="#name-normative-references" class="internal xref">Normative References</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.2">
+                <p id="section-toc.1-1.7.2.2.1"><a href="#section-7.2" class="auto internal xref">7.2</a>.  <a href="#name-informative-references" class="internal xref">Informative References</a></p>
+</li>
+            </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8">
-            <p id="section-toc.1-1.8.1"><a href="#appendix-B" class="auto internal xref"></a><a href="#name-authors-address" class="internal xref">Author's Address</a></p>
+            <p id="section-toc.1-1.8.1"><a href="#appendix-A" class="auto internal xref"></a><a href="#name-acknowledgments" class="internal xref">Acknowledgments</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9">
+            <p id="section-toc.1-1.9.1"><a href="#appendix-B" class="auto internal xref"></a><a href="#name-authors-address" class="internal xref">Author's Address</a></p>
 </li>
         </ul>
 </nav>
@@ -1236,31 +1230,32 @@ high degree of operational redundancy to minimize the risk of cascading outages.
 <a href="#section-1" class="section-number selfRef">1. </a><a href="#name-introduction" class="section-name selfRef">Introduction</a>
       </h2>
 <p id="section-1-1">The Certificate Transparency (CT) ecosystem created by <span>[<a href="#RFC6962" class="cite xref">RFC6962</a>]</span> has been
-immensely valuable to security on the internet. However, various cracks have
-formed in the design over time:<a href="#section-1-1" class="pilcrow">¶</a></p>
+immensely valuable to security on the internet. However, various cracks in the
+design have become apparent over time:<a href="#section-1-1" class="pilcrow">¶</a></p>
 <p id="section-1-2">The security that CT provides to verifiers is based on an assumption of
 non-collusion between multiple parties. Historically, this assumption has been
 challenging to maintain, as it degrades quickly without active management. The
 compromise of a single Transparency Log or the unexpected acquisition of a
-single business is often sufficient to allow the possibility of undetected
+single business is often sufficient to allow the possibility of undetectable
 mis-issued certificates. This is compounded by the fact that multiple parties in
 the CT ecosystem play multiple roles (such as Certificate Authorities that are
 also Transparency Log operators that are also browser vendors), which makes
 reasoning about the possibility of collusion even more tricky.<a href="#section-1-2" class="pilcrow">¶</a></p>
 <p id="section-1-3">It is also becoming far too expensive to both operate a CT log, and to monitor
 CT logs. Logs are required to serve their entire contents to anyone on the
-internet, which consumes a significant amount of outbound bandwidth. Inversely,
+internet, which consumes a significant amount of outbound bandwidth. Similarly,
 monitoring certificate issuance in CT requires downloading the entire contents
 of all logs, which is several terabytes of data at minimum.<a href="#section-1-3" class="pilcrow">¶</a></p>
-<p id="section-1-4">The flip side of publishing certificates is reliably revoking the mis-issued
-certificates that are identified by site operators. However, revocation on the
-web has historically been plagued by a requirement to "fail open". That is,
-revocation checks would stop being enforced in certain (often, easily
-engineered) scenarios. For example, if the server didn't proactively offer proof
-of non-revocation or if a third-party service was inaccessible for too long,
-this might cause revocation checks to be disabled. One promising exception to
-this general principle, OCSP Must-Staple <span>[<a href="#RFC7633" class="cite xref">RFC7633</a>]</span>, has unfortunately been
-the victim of waning support for OCSP by Certificate Authorities.<a href="#section-1-4" class="pilcrow">¶</a></p>
+<p id="section-1-4">The fundamental purpose for publishing TLS certificates is allow site operators
+to identify and and revoke those certificates which are mis-issued. However,
+revocation systems have historically been plagued by a requirement to "fail
+open". That is, revocation checks would stop being enforced in certain (often,
+easily engineered) scenarios. For example, if the server didn't proactively
+offer proof of non-revocation or if a third-party service was inaccessible for
+too long, this might cause revocation checks to be disabled. One promising
+exception to this general principle, OCSP Must-Staple <span>[<a href="#RFC7633" class="cite xref">RFC7633</a>]</span>, has
+unfortunately been the victim of waning support for OCSP by Certificate
+Authorities.<a href="#section-1-4" class="pilcrow">¶</a></p>
 <p id="section-1-5">This motivates a need for a new system of publishing certificates that's
 resistant to collusion and dramatically more efficient to operate, and a need
 for a new system of revoking certificates that can be reliably enforced.<a href="#section-1-5" class="pilcrow">¶</a></p>
@@ -1282,12 +1277,75 @@ appear in all capitals, as shown here.<a href="#section-2-1" class="pilcrow">¶<
       <h2 id="name-architecture">
 <a href="#section-3" class="section-number selfRef">3. </a><a href="#name-architecture" class="section-name selfRef">Architecture</a>
       </h2>
+<p id="section-3-1">The system has several roles, which we describe in more detail below. Parties
+are allowed to assume multiple roles.<a href="#section-3-1" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-3-2">
+        <dt id="section-3-2.1"><strong>Certificate Authority:</strong></dt>
+        <dd style="margin-left: 1.5em" id="section-3-2.2">
+          <p id="section-3-2.2.1">A service that performs domain-control validation and authenticates
+certificates and revocations.<a href="#section-3-2.2.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-3-2.3"><strong>Transparency Log:</strong></dt>
+        <dd style="margin-left: 1.5em" id="section-3-2.4">
+          <p id="section-3-2.4.1">A service that provides an append-only, publicly-auditable log of certificates
+and revocations issued by a wide range of Certificate Authorities.<a href="#section-3-2.4.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-3-2.5"><strong>Site Operator:</strong></dt>
+        <dd style="margin-left: 1.5em" id="section-3-2.6">
+          <p id="section-3-2.6.1">The individual or organization responsible for the operation and maintenance
+of a website, as identified by a single domain name.<a href="#section-3-2.6.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-3-2.7"><strong>User Agent:</strong></dt>
+        <dd style="margin-left: 1.5em" id="section-3-2.8">
+          <p id="section-3-2.8.1">A software application, typically but not necessarily a web browser, that acts
+on behalf of a user to access and interact with websites.<a href="#section-3-2.8.1" class="pilcrow">¶</a></p>
+</dd>
+      <dd class="break"></dd>
+</dl>
 <div id="requirements">
 <section id="section-3.1">
         <h3 id="name-requirements">
 <a href="#section-3.1" class="section-number selfRef">3.1. </a><a href="#name-requirements" class="section-name selfRef">Requirements</a>
         </h3>
 <p id="section-3.1-1">The following baseline requirements for the system are as follows:<a href="#section-3.1-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-3.1-2">
+<li id="section-3.1-2.1">
+            <p id="section-3.1-2.1.1">For a certificate to be mis-issued and not eventually published: two trusted
+parties must collude and all verifiers that observed the certificate must be
+stateless<a href="#section-3.1-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-3.1-2.2">
+            <p id="section-3.1-2.2.1">Violations of the transparency guarantee must have a high potential for
+after-the-fact detection by stateful verifiers.<a href="#section-3.1-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-3.1-2.3">
+            <p id="section-3.1-2.3.1">It must be reasonably efficient for site operators to audit all trusted
+Certificate Authorities for mis-issuances affecting their domain names.<a href="#section-3.1-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-3.1-2.4">
+            <p id="section-3.1-2.4.1">The system must not have any single points of failure, other than those in
+the web PKI as it exists today.<a href="#section-3.1-2.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-3.1-2.5">
+            <p id="section-3.1-2.5.1">End-users must be able to connect to a server without having immediate
+connectivity to third-party services.<a href="#section-3.1-2.5.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-3.1-2.6">
+            <p id="section-3.1-2.6.1">The domain names of websites visited by the end-user must not be leaked,
+other than how they are in the web PKI as it exists today.<a href="#section-3.1-2.6.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-3.1-2.7">
+            <p id="section-3.1-2.7.1">The system must be reasonable for non-browser user agents to deploy.<a href="#section-3.1-2.7.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-3.1-2.8">
+            <p id="section-3.1-2.8.1">The system must have a reasonable path to scale indefinitely.<a href="#section-3.1-2.8.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+<p id="section-3.1-3">These requirements and their main consequences are discussed in more detail in
+the following subsection.<a href="#section-3.1-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="discussion">
@@ -1299,31 +1357,30 @@ appear in all capitals, as shown here.<a href="#section-2-1" class="pilcrow">¶<
 transparency system is to ensure that data shown to one participant is equally
 visible to any other participant. This generally involves the use of a
 "transparency log" that publishes data, and may or may not have additional
-structure to support efficient searches for specific data. For end-users to
-verify that data they've observed is properly published by the log, they must
-maintain state to ensure that the views of the log they're shown are linear (in
-terms of not containing forks) and internally-consistent (with respect to any
-rules the log may have about its content or structure). In addition to ensuring
-that the various views of the log that an end-user has seen are linear,
-end-users must also <em>gossip</em> their view of the log with a wide range of other
-parties. Gossiping allows end-users to detect when they've been shown a fork of
-the log, which could potentially contain malicious data that other participants
-in the system are unaware of.<a href="#section-3.2-1" class="pilcrow">¶</a></p>
-<p id="section-3.2-2">Transparency systems that lack stateful verification, where end-users verify
-that past views of the log are consistent with current views, are more
-accurately termed "co-signing" schemes. That is because, with stateless
-verification, the security of any such construction reduces solely to successful
-verification of the transparency log's signature on a claim. The transparency
-guarantees of co-signing schemes can be undermined by collusion between the
-co-signers (in the web PKI, the co-signers would be a CA and one or more
-transparency logs). The highly diverse and rapidly changing nature of the web
-makes collusion between participants easy to achieve and difficult to detect.
-This makes co-signing schemes generally unsuitable for use in the web PKI
-without requiring a multitude of co-signers. However, transmitting a multitude
-of signatures from larger, PQ-secure signature schemes can measurably degrade
-the performance of TLS connections. Additionally, co-signing schemes provide no
-way to detect collusion after-the-fact without resorting to stateful
-verification.<a href="#section-3.2-2" class="pilcrow">¶</a></p>
+structure to support efficient searches for specific data. Transparency Logs
+must be verified to be linear, in terms of being append-only, and
+internally-consistent with respect to any rules that the log may have about its
+content or structure. Without relying on a third-party to verify these
+properties, which may collude with the Transparency Log, end-users must retain
+state to verify these properties themselves. In addition to ensuring that the
+various views of the log that an end-user has seen are linear and
+internally-consistent, end-users must also <em>gossip</em> their view of the log with a
+wide range of other parties. Gossiping allows end-users to detect when they've
+been shown a fork of the log that could potentially contain malicious data
+that other participants in the system are unaware of.<a href="#section-3.2-1" class="pilcrow">¶</a></p>
+<p id="section-3.2-2">Transparency systems based on stateless verification are more accurately termed
+"co-signing" schemes. That's because, with stateless verification, the security
+of any such construction reduces solely to successful verification of the
+co-signers' signatures on a claim. The transparency guarantees of
+co-signing schemes can be undermined by collusion between the co-signers. In the
+web PKI, the co-signers would be a CA and one or more transparency logs. The
+diverse and rapidly changing nature of the web makes collusion between
+participants easy to achieve and difficult to detect. As such, co-signing
+schemes generally unsuitable for use in the web PKI without requiring a
+multitude of co-signers. However, transmitting a multitude of signatures from
+larger, PQ-secure signature schemes can measurably degrade the performance of
+TLS connections. Additionally, co-signing schemes provide no way to detect
+collusion after the fact without resorting to stateful verification.<a href="#section-3.2-2" class="pilcrow">¶</a></p>
 <p id="section-3.2-3"><strong>Servers must provide proof directly to end-users that their certificate
 satisfies transparency requirements and isn't revoked.</strong> If proof of
 transparency and non-revocation isn't provided by the server, it must be fetched
@@ -1374,14 +1431,15 @@ required to be short-lived. If end-users enforce that all certificates are
 short-lived, and issuance is transparent, then revocation is provided by the
 transparency system as claimed. If certificates may be issued with longer
 lifespans, then a second revocation mechanism for these certificates is
-necessary. Considering solutions other than short-lived certificates, where the
-CA initiates revocation by declining to sign some statement, it's clear that the
-same potential for split-view attacks exists as discussed above.<a href="#section-3.2-9" class="pilcrow">¶</a></p>
-<p id="section-3.2-10"><strong>Transparency logs must implement the Key Transparency protocol.</strong> As stated at
+necessary. Additionally, when considering solutions other than short-lived
+certificates where the CA initiates revocation by declining to sign some
+statement, it's clear that the same potential for split-view attacks exists as
+discussed above.<a href="#section-3.2-9" class="pilcrow">¶</a></p>
+<p id="section-3.2-10"><strong>Transparency Logs must implement the Key Transparency protocol.</strong> As stated at
 the beginning of this section, the goal of any transparency system is to ensure
 that data shown to one participant is equally visible to any other participant.
-An important aspect of this requirement is that server operators must be able to
-contact a transparency log and verifiably receive all of the certificates and
+An important aspect of this requirement is that site operators must be able to
+contact a Transparency Log and verifiably receive all of the certificates and
 revocations that are relevant to them.<a href="#section-3.2-10" class="pilcrow">¶</a></p>
 <p id="section-3.2-11">Most transparency systems require downloading the entirety of the log's contents
 to ensure that all potentially relevant entries are found. This quickly becomes
@@ -1390,59 +1448,247 @@ certificates are issued per day, with an average size of 3 kilobytes. This means
 that a site operator would need to download almost 700 gigabytes of certificates
 to cover a single month of issuance. Outbound bandwidth typically costs between
 1 to 9 cents per gigabyte, which means that providing this data to a single
-server operator would cost the transparency log between $6 to $60. For any
-reasonable estimate of the number of server operators on the internet, this
-represents an exceptional burden on a transparency log.<a href="#section-3.2-11" class="pilcrow">¶</a></p>
+site operator would cost the Transparency Log between $6 to $60. For any
+reasonable estimate of the number of site operators on the internet, this
+represents an exceptional burden on a Transparency Log.<a href="#section-3.2-11" class="pilcrow">¶</a></p>
 <p id="section-3.2-12">In previously deployed systems, because of this exceptional cost, site operators
 have elected not to do this work themselves and instead outsourced it to
 third-party monitors. Third-party monitors represent a problematic break in the
 security guarantees of the system, as there are no enforceable requirements on
 their behavior. They are not audited for correct behavior like certificate
 authorities are, and there are no technical mechanisms to prevent misbehavior
-like a transparency log would have. This has had the real-world impact of
+like a Transparency Log would have. This has had the real-world impact of
 undermining the claimed transparency guarantees of these systems <span>[<a href="#ct-in-wild" class="cite xref">ct-in-wild</a>]</span>.<a href="#section-3.2-12" class="pilcrow">¶</a></p>
-<p id="section-3.2-13">Key Transparency <span>[<a href="#I-D.draft-keytrans-mcmillion-protocol" class="cite xref">I-D.draft-keytrans-mcmillion-protocol</a>]</span> augments a
-transparency log with additional structure to allow efficient and verifiable
-searches for specific data. This allows server operators to download only the
-contents of the transparency log that's relevant to them, while still being able
-to guarantee that no certificates have been issued for their domains that they
-are unaware of. As a result of the significantly reduced need for outbound
-bandwidth, operating such a transparency log would cost around one million times
-less than it would otherwise.<a href="#section-3.2-13" class="pilcrow">¶</a></p>
+<p id="section-3.2-13">Key Transparency <span>[<a href="#I-D.draft-ietf-keytrans-protocol" class="cite xref">I-D.draft-ietf-keytrans-protocol</a>]</span> augments a Transparency Log
+with additional structure to allow efficient and verifiable searches for
+specific data. This allows server operators to download only the entries of the
+Transparency Log that're relevant to them, while still being able to guarantee
+that no certificates have been issued for their domains that they are unaware
+of. As a result of the significantly reduced need for outbound bandwidth,
+operating such a Transparency Log would cost around one million times less than
+it would otherwise.<a href="#section-3.2-13" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="summary">
+<section id="section-3.3">
+        <h3 id="name-summary">
+<a href="#section-3.3" class="section-number selfRef">3.3. </a><a href="#name-summary" class="section-name selfRef">Summary</a>
+        </h3>
+<p id="section-3.3-1">In summary, the system described in this document works as follows:<a href="#section-3.3-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-3.3-2.1">
+            <p id="section-3.3-2.1.1">Site Operators obtain a certificate from a Certificate Authority and submit it
+to one of many trusted Transparency Logs to obtain a proof of inclusion.<a href="#section-3.3-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-3.3-2.2">
+            <p id="section-3.3-2.2.1">End-Users that contact the Site Operator's server over TLS receive the
+certificate and proof of inclusion. End-Users verify that the proof of
+inclusion is sufficiently recent and that the certificate is unrevoked.<a href="#section-3.3-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-3.3-2.3">
+            <p id="section-3.3-2.3.1">As time goes on, the current proof of inclusion will become stale. Site
+Operators refresh their proof of inclusion by requesting a new one from the
+Transparency Log.<a href="#section-3.3-2.3.1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-3.3-2.3.2.1">
+                <p id="section-3.3-2.3.2.1.1">If the first Transparency Log is offline, the Site Operator may failover to
+any of several other qualified Transparency Logs.<a href="#section-3.3-2.3.2.1.1" class="pilcrow">¶</a></p>
+</li>
+            </ul>
+</li>
+          <li class="normal" id="section-3.3-2.4">
+            <p id="section-3.3-2.4.1">At any time in the background, the Site Operator may query the Transparency
+Log and verifiably learn about all new certificates issued for their domain.<a href="#section-3.3-2.4.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-3.3-3">The remainder of this document describes these steps in more detail.<a href="#section-3.3-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="transparency-log">
+<section id="section-4">
+      <h2 id="name-transparency-log">
+<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-transparency-log" class="section-name selfRef">Transparency Log</a>
+      </h2>
+<p id="section-4-1">Transparency Logs are online services that maintain a tree data structure and
+provide access to it through the endpoints described below. Transparency Logs
+are generally only contacted by Site Operators. Site Operators regularly issue
+requests to the Transparency Log's endpoints to either obtain fresh proofs of
+inclusion for their certificates, or to monitor for mis-issuances affecting
+their domain names.<a href="#section-4-1" class="pilcrow">¶</a></p>
+<p id="section-4-2">While a Transparency Log may be operated by a Certificate Authority,
+Transparency Logs <span class="bcp14">SHOULD</span> accept certificates issued by a broad set of the
+current widely-trusted Certificate Authorities. This ensures that, if one
+Transparency Log has an outage, there are several other Transparency Logs that
+Site Operators can fallback on for the purpose of fetching a fresh proof of
+inclusion.<a href="#section-4-2" class="pilcrow">¶</a></p>
+<div id="structure">
+<section id="section-4.1">
+        <h3 id="name-structure">
+<a href="#section-4.1" class="section-number selfRef">4.1. </a><a href="#name-structure" class="section-name selfRef">Structure</a>
+        </h3>
+<p id="section-4.1-1">The data structure maintained by a Transparency Log is identical to the Combined
+Tree described in <span>[<a href="#I-D.draft-ietf-keytrans-protocol" class="cite xref">I-D.draft-ietf-keytrans-protocol</a>]</span>, with two exceptions:
+the search keys that are used to navigate the Prefix Tree, and the
+data committed to by each Prefix Tree leaf node, are different.<a href="#section-4.1-1" class="pilcrow">¶</a></p>
+<p id="section-4.1-2">The search key used to navigate the Prefix Tree is the hash of the Common Name
+field of a TLS certificate. The hash function used corresponds to the
+ciphersuite hash function. No VRF is used, or version counter is included in the
+hash function input, as they would be in <span>[<a href="#I-D.draft-ietf-keytrans-protocol" class="cite xref">I-D.draft-ietf-keytrans-protocol</a>]</span>.<a href="#section-4.1-2" class="pilcrow">¶</a></p>
+<p id="section-4.1-3">Rather than a privacy-preserving commitment, each Prefix Tree leaf contains the
+hash of a <code>DomainCertificates</code> structure:<a href="#section-4.1-3" class="pilcrow">¶</a></p>
+<div class="lang-tls sourcecode" id="section-4.1-4">
+<pre>
+struct {
+  opaque root&lt;Hash.Nh&gt;;
+  uint32 first_valid;
+  uint32 invalid_entries&lt;0..2^8-1&gt;;
+} DomainCertificates;
+</pre><a href="#section-4.1-4" class="pilcrow">¶</a>
+</div>
+<p id="section-4.1-5">The <code>root</code> field contains the root hash of a Log Tree, which will be referred to
+as the <strong>Certificate Subtree</strong>. The Certificate Subtree contains all certificate
+chains that may be presented for a particular domain name (the certificate's
+Common Name), in the order they were logged. The leaves of the Certificate
+Subtree are represented as <code>SubtreeLogLeaf</code> structures, used in place of
+<code>LogLeaf</code>:<a href="#section-4.1-5" class="pilcrow">¶</a></p>
+<div class="lang-tls sourcecode" id="section-4.1-6">
+<pre>
+opaque Certificate&lt;0..2^16-1&gt;;
+
+struct {
+  Certificate chain&lt;0..2^8-1&gt;;
+} SubtreeLogLeaf;
+</pre><a href="#section-4.1-6" class="pilcrow">¶</a>
+</div>
+<p id="section-4.1-7">The <code>first_valid</code> field contains the index of the first entry in the Certificate
+Subtree where no certificate in the chain is revoked or expired. The
+<code>invalid_entries</code> field contains the list of indices of all entries to the right
+of <code>first_valid</code> where one or more of the certificates in the chain have been
+revoked.<a href="#section-4.1-7" class="pilcrow">¶</a></p>
+<p id="section-4.1-8">Transparency Logs <span class="bcp14">SHOULD</span> determine whether a certificate chain is expired by
+comparing the Not After field of each certificate in the chain to the timestamp
+of the Log Tree's rightmost leaf. However, Transparency Logs do not have a
+proactive responsibility to keep the <code>first_valid</code> field updated; it is simply
+provided as a mechanism to drain <code>invalid_entries</code>.<a href="#section-4.1-8" class="pilcrow">¶</a></p>
+<p id="section-4.1-9">When computing <code>PrefixLeaf</code>, the hash of the leaf certificates' Common Name is
+stored in the <code>vrf_output</code> field and the hash of <code>DomainCertificates</code> is stored
+in the <code>commitment</code> field.<a href="#section-4.1-9" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="endpoints">
+<section id="section-4.2">
+        <h3 id="name-endpoints">
+<a href="#section-4.2" class="section-number selfRef">4.2. </a><a href="#name-endpoints" class="section-name selfRef">Endpoints</a>
+        </h3>
+<p id="section-4.2-1">Transparency Logs expose the following endpoints over HTTP or HTTPS. Which
+endpoint is being accessed is determined by the request's method and path.
+Request and response bodies are specific structures, which are encoded according
+to TLS format and then base64 encoded.<a href="#section-4.2-1" class="pilcrow">¶</a></p>
+<div id="get-puzzle">
+<section id="section-4.2.1">
+          <h4 id="name-get-puzzle">
+<a href="#section-4.2.1" class="section-number selfRef">4.2.1. </a><a href="#name-get-puzzle" class="section-name selfRef">Get Puzzle</a>
+          </h4>
+<p id="section-4.2.1-1">GET /get-puzzle<a href="#section-4.2.1-1" class="pilcrow">¶</a></p>
+<p id="section-4.2.1-2">There is no request body. The response body is:<a href="#section-4.2.1-2" class="pilcrow">¶</a></p>
+<div class="lang-tls sourcecode" id="section-4.2.1-3">
+<pre>
+struct {
+  uint16 difficulty;
+  opaque server_input&lt;0..2^8-1&gt;;
+} Puzzle;
+</pre><a href="#section-4.2.1-3" class="pilcrow">¶</a>
+</div>
+<p id="section-4.2.1-4">Puzzles are used to prevent abuse of the Transparency Log's endpoints. A
+solution to a puzzle is a <code>PuzzleSolution</code> structure, with the <code>solution</code> field
+populated such that hashing the <code>PuzzleSolution</code> structure with the ciphersuite
+hash function results in a value with <code>difficulty</code> leading zero bits.<a href="#section-4.2.1-4" class="pilcrow">¶</a></p>
+<div class="lang-tls sourcecode" id="section-4.2.1-5">
+<pre>
+struct {
+  uint64 solution;
+  opaque server_input&lt;0..2^8-1&gt;;
+} PuzzleSolution;
+</pre><a href="#section-4.2.1-5" class="pilcrow">¶</a>
+</div>
+<p id="section-4.2.1-6">Clients request a puzzle before making a query to any subsequent endpoint and
+provide the <code>PuzzleSolution</code> in the request body. Clients <span class="bcp14">SHOULD NOT</span> attempt to
+build a reserve of puzzle solutions, or use a puzzle more than once.<a href="#section-4.2.1-6" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="add-certificate">
+<section id="section-4.2.2">
+          <h4 id="name-add-certificate">
+<a href="#section-4.2.2" class="section-number selfRef">4.2.2. </a><a href="#name-add-certificate" class="section-name selfRef">Add Certificate</a>
+          </h4>
+<p id="section-4.2.2-1">POST /add-certificate<a href="#section-4.2.2-1" class="pilcrow">¶</a></p>
+<div class="lang-tls sourcecode" id="section-4.2.2-2">
+<pre>
+struct {
+  PuzzleSolution solution;
+  Certificate chain&lt;0..2^8-1&gt;;
+} AddCertificateRequest;
+</pre><a href="#section-4.2.2-2" class="pilcrow">¶</a>
+</div>
+<p id="section-4.2.2-3">The request body is an <code>AddCertificateRequest</code> structure. The first certificate
+in the <code>chain</code> field is a leaf certificate, the subsequent certificate is the
+one that issued the leaf certificate, and so on. The final element of the array
+is issued by one of the roots trusted by the Transparency Log.<a href="#section-4.2.2-3" class="pilcrow">¶</a></p>
+<div class="lang-tls sourcecode" id="section-4.2.2-4">
+<pre>
+struct {
+  TreeHead tree_head;
+  CombinedTreeProof search;
+  InclusionProof inclusion;
+} AddCertificateResponse;
+</pre><a href="#section-4.2.2-4" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="refreshing-an-inclusion-proof">
+<section id="section-4.2.3">
+          <h4 id="name-refreshing-an-inclusion-pro">
+<a href="#section-4.2.3" class="section-number selfRef">4.2.3. </a><a href="#name-refreshing-an-inclusion-pro" class="section-name selfRef">Refreshing an Inclusion Proof</a>
+          </h4>
+<p id="section-4.2.3-1">### Monitoring a Label<a href="#section-4.2.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
 </section>
 </div>
 </section>
 </div>
 <div id="security-considerations">
-<section id="section-4">
+<section id="section-5">
       <h2 id="name-security-considerations">
-<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
+<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
       </h2>
-<p id="section-4-1">TODO Security<a href="#section-4-1" class="pilcrow">¶</a></p>
+<p id="section-5-1">TODO Security<a href="#section-5-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="iana-considerations">
-<section id="section-5">
+<section id="section-6">
       <h2 id="name-iana-considerations">
-<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
+<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
       </h2>
-<p id="section-5-1">This document has no IANA actions.<a href="#section-5-1" class="pilcrow">¶</a></p>
+<p id="section-6-1">This document has no IANA actions.<a href="#section-6-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="sec-combined-references">
-<section id="section-6">
+<section id="section-7">
       <h2 id="name-references">
-<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-references" class="section-name selfRef">References</a>
+<a href="#section-7" class="section-number selfRef">7. </a><a href="#name-references" class="section-name selfRef">References</a>
       </h2>
 <div id="sec-normative-references">
-<section id="section-6.1">
+<section id="section-7.1">
         <h3 id="name-normative-references">
-<a href="#section-6.1" class="section-number selfRef">6.1. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
+<a href="#section-7.1" class="section-number selfRef">7.1. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
         </h3>
 <dl class="references">
-<dt id="I-D.draft-keytrans-mcmillion-protocol">[I-D.draft-keytrans-mcmillion-protocol]</dt>
+<dt id="I-D.draft-ietf-keytrans-protocol">[I-D.draft-ietf-keytrans-protocol]</dt>
         <dd>
-<span class="refAuthor">McMillion, B.</span> and <span class="refAuthor">F. Linker</span>, <span class="refTitle">"Key Transparency Protocol"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-keytrans-mcmillion-protocol-01</span>, <time datetime="2024-10-13" class="refDate">13 October 2024</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-keytrans-mcmillion-protocol-01">https://datatracker.ietf.org/doc/html/draft-keytrans-mcmillion-protocol-01</a>&gt;</span>. </dd>
+<span class="refAuthor">McMillion, B.</span> and <span class="refAuthor">F. Linker</span>, <span class="refTitle">"Key Transparency Protocol"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-keytrans-protocol-00</span>, <time datetime="2024-12-10" class="refDate">10 December 2024</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-keytrans-protocol-00">https://datatracker.ietf.org/doc/html/draft-ietf-keytrans-protocol-00</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="RFC2119">[RFC2119]</dt>
         <dd>
@@ -1456,9 +1702,9 @@ less than it would otherwise.<a href="#section-3.2-13" class="pilcrow">¶</a></p
 </section>
 </div>
 <div id="sec-informative-references">
-<section id="section-6.2">
+<section id="section-7.2">
         <h3 id="name-informative-references">
-<a href="#section-6.2" class="section-number selfRef">6.2. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
+<a href="#section-7.2" class="section-number selfRef">7.2. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
         </h3>
 <dl class="references">
 <dt id="ct-in-wild">[ct-in-wild]</dt>
