@@ -69,19 +69,20 @@ reasoning about the possibility of collusion even more tricky.
 
 It is also becoming far too expensive to both operate a CT log, and to monitor
 CT logs. Logs are required to serve their entire contents to anyone on the
-internet, which consumes a significant amount of outbound bandwidth. Inversely,
+internet, which consumes a significant amount of outbound bandwidth. Similarly,
 monitoring certificate issuance in CT requires downloading the entire contents
 of all logs, which is several terabytes of data at minimum.
 
-The flip side of publishing certificates is reliably revoking the mis-issued
-certificates that are identified by site operators. However, revocation systems
-have historically been plagued by a requirement to "fail open". That is,
-revocation checks would stop being enforced in certain (often, easily
-engineered) scenarios. For example, if the server didn't proactively offer proof
-of non-revocation or if a third-party service was inaccessible for too long,
-this might cause revocation checks to be disabled. One promising exception to
-this general principle, OCSP Must-Staple {{?RFC7633}}, has unfortunately been
-the victim of waning support for OCSP by Certificate Authorities.
+The fundamental purpose for publishing TLS certificates is allow site operators
+to identify and and revoke those certificates which are mis-issued. However,
+revocation systems have historically been plagued by a requirement to "fail
+open". That is, revocation checks would stop being enforced in certain (often,
+easily engineered) scenarios. For example, if the server didn't proactively
+offer proof of non-revocation or if a third-party service was inaccessible for
+too long, this might cause revocation checks to be disabled. One promising
+exception to this general principle, OCSP Must-Staple {{?RFC7633}}, has
+unfortunately been the victim of waning support for OCSP by Certificate
+Authorities.
 
 This motivates a need for a new system of publishing certificates that's
 resistant to collusion and dramatically more efficient to operate, and a need
@@ -99,21 +100,20 @@ The system has several roles, which we describe in more detail below. Parties
 are allowed to assume multiple roles.
 
 **Certificate Authority:**
-: A trusted service that performs domain-control validation and authenticates
+: A service that performs domain-control validation and authenticates
   certificates and revocations.
 
 **Transparency Log:**
-: An untrusted service that provides an append-only, publicly-auditable log of
-  certificates and revocations issued by a wide range of Certificate
-  Authorities.
+: A service that provides an append-only, publicly-auditable log of certificates
+  and revocations issued by a wide range of Certificate Authorities.
 
 **Site Operator:**
 : The individual or organization responsible for the operation and maintenance
-  of a website, identified by a single domain name.
+  of a website, as identified by a single domain name.
 
 **User Agent:**
-: A software application, typically a web browser, that acts on behalf of a user
-  to access and interact with websites.
+: A software application, typically but not necessarily a web browser, that acts
+  on behalf of a user to access and interact with websites.
 
 ## Requirements
 
@@ -159,7 +159,7 @@ that other participants in the system are unaware of.
 Transparency systems based on stateless verification are more accurately termed
 "co-signing" schemes. That's because, with stateless verification, the security
 of any such construction reduces solely to successful verification of the
-transparency log's signature on a claim. The transparency guarantees of
+co-signers' signatures on a claim. The transparency guarantees of
 co-signing schemes can be undermined by collusion between the co-signers. In the
 web PKI, the co-signers would be a CA and one or more transparency logs. The
 diverse and rapidly changing nature of the web makes collusion between
@@ -226,15 +226,16 @@ required to be short-lived. If end-users enforce that all certificates are
 short-lived, and issuance is transparent, then revocation is provided by the
 transparency system as claimed. If certificates may be issued with longer
 lifespans, then a second revocation mechanism for these certificates is
-necessary. Considering solutions other than short-lived certificates, where the
-CA initiates revocation by declining to sign some statement, it's clear that the
-same potential for split-view attacks exists as discussed above.
+necessary. Additionally, when considering solutions other than short-lived
+certificates where the CA initiates revocation by declining to sign some
+statement, it's clear that the same potential for split-view attacks exists as
+discussed above.
 
-**Transparency logs must implement the Key Transparency protocol.** As stated at
+**Transparency Logs must implement the Key Transparency protocol.** As stated at
 the beginning of this section, the goal of any transparency system is to ensure
 that data shown to one participant is equally visible to any other participant.
 An important aspect of this requirement is that site operators must be able to
-contact a transparency log and verifiably receive all of the certificates and
+contact a Transparency Log and verifiably receive all of the certificates and
 revocations that are relevant to them.
 
 Most transparency systems require downloading the entirety of the log's contents
@@ -244,9 +245,9 @@ certificates are issued per day, with an average size of 3 kilobytes. This means
 that a site operator would need to download almost 700 gigabytes of certificates
 to cover a single month of issuance. Outbound bandwidth typically costs between
 1 to 9 cents per gigabyte, which means that providing this data to a single
-site operator would cost the transparency log between $6 to $60. For any
+site operator would cost the Transparency Log between $6 to $60. For any
 reasonable estimate of the number of site operators on the internet, this
-represents an exceptional burden on a transparency log.
+represents an exceptional burden on a Transparency Log.
 
 In previously deployed systems, because of this exceptional cost, site operators
 have elected not to do this work themselves and instead outsourced it to
@@ -254,16 +255,16 @@ third-party monitors. Third-party monitors represent a problematic break in the
 security guarantees of the system, as there are no enforceable requirements on
 their behavior. They are not audited for correct behavior like certificate
 authorities are, and there are no technical mechanisms to prevent misbehavior
-like a transparency log would have. This has had the real-world impact of
+like a Transparency Log would have. This has had the real-world impact of
 undermining the claimed transparency guarantees of these systems {{ct-in-wild}}.
 
-Key Transparency {{!I-D.draft-ietf-keytrans-protocol}} augments a transparency log
+Key Transparency {{!I-D.draft-ietf-keytrans-protocol}} augments a Transparency Log
 with additional structure to allow efficient and verifiable searches for
-specific data. This allows server operators to download only the contents of the
-transparency log that's relevant to them, while still being able to guarantee
+specific data. This allows server operators to download only the entries of the
+Transparency Log that're relevant to them, while still being able to guarantee
 that no certificates have been issued for their domains that they are unaware
 of. As a result of the significantly reduced need for outbound bandwidth,
-operating such a transparency log would cost around one million times less than
+operating such a Transparency Log would cost around one million times less than
 it would otherwise.
 
 ## Summary
@@ -278,6 +279,8 @@ In summary, the system described in this document works as follows:
 - As time goes on, the current proof of inclusion will become stale. Site
   Operators refresh their proof of inclusion by requesting a new one from the
   Transparency Log.
+  - If the first Transparency Log is offline, the Site Operator may failover to
+    any of several other qualified Transparency Logs.
 - At any time in the background, the Site Operator may query the Transparency
   Log and verifiably learn about all new certificates issued for their domain.
 
@@ -285,10 +288,12 @@ The remainder of this document describes these steps in more detail.
 
 # Transparency Log
 
-Transparency Logs generally communicate only with Site Operators. Site Operators
-regularly issue requests to the Transparency Log's endpoints to either obtain
-fresh proofs of inclusion for their certificates, or to monitor for
-mis-issuances affecting their domain names.
+Transparency Logs are online services that maintain a tree data structure and
+provide access to it through the endpoints described below. Transparency Logs
+are generally only contacted by Site Operators. Site Operators regularly issue
+requests to the Transparency Log's endpoints to either obtain fresh proofs of
+inclusion for their certificates, or to monitor for mis-issuances affecting
+their domain names.
 
 While a Transparency Log may be operated by a Certificate Authority,
 Transparency Logs SHOULD accept certificates issued by a broad set of the
@@ -297,34 +302,124 @@ Transparency Log has an outage, there are several other Transparency Logs that
 Site Operators can fallback on for the purpose of fetching a fresh proof of
 inclusion.
 
+## Structure
+
+The data structure maintained by a Transparency Log is identical to the Combined
+Tree described in {{!I-D.draft-ietf-keytrans-protocol}}, with two exceptions:
+the search keys that are used to navigate the Prefix Tree, and the
+data committed to by each Prefix Tree leaf node, are different.
+
+The search key used to navigate the Prefix Tree is the hash of the Common Name
+field of a TLS certificate. The hash function used corresponds to the
+ciphersuite hash function. No VRF is used, or version counter is included in the
+hash function input, as they would be in {{!I-D.draft-ietf-keytrans-protocol}}.
+
+Rather than a privacy-preserving commitment, each Prefix Tree leaf contains the
+hash of a `DomainCertificates` structure:
+
+~~~ tls
+struct {
+  opaque root<Hash.Nh>;
+  uint32 first_valid;
+  uint32 invalid_entries<0..2^8-1>;
+} DomainCertificates;
+~~~
+
+The `root` field contains the root hash of a Log Tree, which will be referred to
+as the **Certificate Subtree**. The Certificate Subtree contains all certificate
+chains that may be presented for a particular domain name (the certificate's
+Common Name), in the order they were logged. The leaves of the Certificate
+Subtree are represented as `SubtreeLogLeaf` structures, used in place of
+`LogLeaf`:
+
+~~~ tls
+opaque Certificate<0..2^16-1>;
+
+struct {
+  Certificate chain<0..2^8-1>;
+} SubtreeLogLeaf;
+~~~
+
+The `first_valid` field contains the index of the first entry in the Certificate
+Subtree where no certificate in the chain is revoked or expired. The
+`invalid_entries` field contains the list of indices of all entries to the right
+of `first_valid` where one or more of the certificates in the chain have been
+revoked.
+
+Transparency Logs SHOULD determine whether a certificate chain is expired by
+comparing the Not After field of each certificate in the chain to the timestamp
+of the Log Tree's rightmost leaf. However, Transparency Logs do not have a
+proactive responsibility to keep the `first_valid` field updated; it is simply
+provided as a mechanism to drain `invalid_entries`.
+
+When computing `PrefixLeaf`, the hash of the leaf certificates' Common Name is
+stored in the `vrf_output` field and the hash of `DomainCertificates` is stored
+in the `commitment` field.
+
 ## Endpoints
 
 Transparency Logs expose the following endpoints over HTTP or HTTPS. Which
 endpoint is being accessed is determined by the request's method and path.
-Request and response bodies are JSON-encoded structures.
+Request and response bodies are specific structures, which are encoded according
+to TLS format and then base64 encoded.
 
-### Trusted Roots
+### Get Puzzle
 
-GET /trusted-roots
+GET /get-puzzle
 
-The request body is empty. The output is an array of base64-encoded root
-certificates. The presence of a root certificate in this list indicates that the
-Transparency Log will accept certificates that chain to that root. However, it
-is not a guarantee.
+There is no request body. The response body is:
 
-### Adding an Entry
+~~~ tls
+struct {
+  uint16 difficulty;
+  opaque server_input<0..2^8-1>;
+} Puzzle;
+~~~
+
+Puzzles are used to prevent abuse of the Transparency Log's endpoints. A
+solution to a puzzle is a `PuzzleSolution` structure, with the `solution` field
+populated such that hashing the `PuzzleSolution` structure with the ciphersuite
+hash function results in a value with `difficulty` leading zero bits.
+
+~~~ tls
+struct {
+  uint64 solution;
+  opaque server_input<0..2^8-1>;
+} PuzzleSolution;
+~~~
+
+Clients request a puzzle before making a query to any subsequent endpoint and
+provide the `PuzzleSolution` in the request body. Clients SHOULD NOT attempt to
+build a reserve of puzzle solutions, or use a puzzle more than once.
+
+### Add Certificate
 
 POST /add-certificate
 
-The request body is an array of base64-encoded certificates. The first
-certificate is a leaf certificate, the subsequent certificate is the one that
-issued the leaf certificate, and so on. The final element of the array is issued
-by one of the roots trusted by the Transparency Log.
+~~~ tls
+struct {
+  PuzzleSolution solution;
+  Certificate chain<0..2^8-1>;
+} AddCertificateRequest;
+~~~
+
+The request body is an `AddCertificateRequest` structure. The first certificate
+in the `chain` field is a leaf certificate, the subsequent certificate is the
+one that issued the leaf certificate, and so on. The final element of the array
+is issued by one of the roots trusted by the Transparency Log.
+
+~~~ tls
+struct {
+  TreeHead tree_head;
+  CombinedTreeProof search;
+  InclusionProof inclusion;
+} AddCertificateResponse;
+~~~
+
+
 
 ### Refreshing an Inclusion Proof
 ### Monitoring a Label
-
-# TLS Client-Server Protocol
 
 # Security Considerations
 
