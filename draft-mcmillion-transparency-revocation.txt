@@ -83,6 +83,7 @@ Table of Contents
        4.2.3.  Refreshing an Inclusion Proof
    5.  TLS Extension
      5.1.  ClientHello
+     5.2.  Certificate
    6.  Security Considerations
      6.1.  ClientHello Extension
    7.  IANA Considerations
@@ -513,7 +514,7 @@ Table of Contents
    previously observed a provisional inclusion proof from the host.
 
    struct {
-     uint64 transparency_log_id;
+     uint16 transparency_log_id;
      optional<uint64> tree_size;
    } SupportedTransparencyLog;
 
@@ -561,6 +562,79 @@ Table of Contents
    3.  Respond with a standard (non-provisional) inclusion proof, in
        which case the bearer token and pre-shared key would no longer be
        provided by the User Agent.
+
+5.2.  Certificate
+
+   Hosts that receive a TLS 1.3 connection where the ClientHello has an
+   extension of type "transparency_revocation" with a properly formed
+   extension_data field have the option of providing an inclusion proof
+   for their certificate chain.  This is done by adding an extension of
+   type "transparency_revocation" to the first CertificateEntry
+   structure in certificate_list where the extension_data field is a
+   serialized TransparencyProof structure:
+
+   enum {
+     reserved(0),
+     standard(1),
+     provisional(2),
+     same_head(3),
+     (255)
+   } TransparencyProofType;
+
+   struct {
+     TreeHead tree_head;
+     CombinedTreeProof combined;
+     SubtreeInclusionProof subtree;
+   } StandardProof;
+
+   struct {
+     ProvisionalTreeHead tree_head;
+     CombinedTreeProof combined;
+
+     PrefixProof prefix;
+     SubtreeInclusionProof subtree;
+   } ProvisionalProof;
+
+   struct {
+     PrefixProof prefix;
+     SubtreeInclusionProof subtree;
+   } SameHeadProof;
+
+   struct {
+     uint16 transparency_log_id;
+
+     TransparencyProofType proof_type;
+     select(TransparencyProof.proof_type) {
+       case standard:
+         StandardProof proof;
+       case provisional:
+         ProvisionalProof proof;
+       case same_head:
+         SameHeadProof proof;
+     };
+   } TransparencyProof;
+
+   The transparency_log_id field specifies the Transparency Log that the
+   proof comes from.  The proof_type field specifies the type of proof
+   that follows:
+
+   *  standard: The proof of inclusion is against a log entry that is
+      currently published by the Transparency Log, but more recent than
+      the User Agent may be aware of.
+
+   *  provisional: The proof of inclusion is against a log entry that is
+      not yet published by the Transparency Log, but will be published
+      within a bounded amount of time.
+
+   *  same_head: The proof of inclusion is either against the same
+      provisional head that originated TransparencyRequest.bearer_token
+      (if present), or otherwise against the same version of the
+      Transparency Log tree advertised in TransparencyRequest.supported
+
+   User Agents verify the proof by the following steps:
+
+   1.  Verify that transparency_log_id is a known Transparency Log that
+       was advertised in the ClientHello extension.
 
 6.  Security Considerations
 
