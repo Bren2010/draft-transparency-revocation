@@ -3,9 +3,9 @@
 
 
 TLS Working Group                                           B. McMillion
-Internet-Draft                                           14 January 2025
+Internet-Draft                                           15 January 2025
 Intended status: Informational                                          
-Expires: 18 July 2025
+Expires: 19 July 2025
 
 
             Reliable Transparency and Revocation Mechanisms
@@ -51,7 +51,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 18 July 2025.
+   This Internet-Draft will expire on 19 July 2025.
 
 Copyright Notice
 
@@ -81,11 +81,14 @@ Table of Contents
        4.2.1.  Get Puzzle
        4.2.2.  Add Certificate
        4.2.3.  Refreshing an Inclusion Proof
-   5.  Security Considerations
-   6.  IANA Considerations
-   7.  References
-     7.1.  Normative References
-     7.2.  Informative References
+   5.  TLS Extensions
+     5.1.  ClientHello
+   6.  Security Considerations
+     6.1.  ClientHello Extension
+   7.  IANA Considerations
+   8.  References
+     8.1.  Normative References
+     8.2.  Informative References
    Acknowledgments
    Author's Address
 
@@ -496,17 +499,125 @@ Table of Contents
 
    ### Monitoring a Label
 
-5.  Security Considerations
+5.  TLS Extensions
 
-   TODO Security
+5.1.  ClientHello
 
-6.  IANA Considerations
+   User Agents include an extension in their TLS 1.3 ClientHello to
+   communicate which Transparency Logs they support, and whether or not
+   they have previously observed a provisional inclusion proof from the
+   host.
 
-   This document has no IANA actions.
+   struct {
+     uint64 transparency_log_id;
+     optional<uint64> tree_size;
+   } SupportedTransparencyLog;
 
-7.  References
+   struct {
+     opaque value<0..2^8-1>;
+   } BearerToken;
 
-7.1.  Normative References
+   struct {
+     SupportedTransparencyLog supported<0..2^8-1>;
+     optional<BearerToken> bearer_token;
+   } TransparencyRequest;
+
+   The ClientHello extension has type "transparency_request" and
+   consists of a serialized TransparencyRequest structure in the
+   "extension_data" field.
+
+   User Agents include an entry in the supported array for each
+   Transparency Log that they support receiving inclusion proofs from,
+   containing the Transparency Log's assigned unique identifier in
+   transparency_log_id.  If the User Agent is aware of a suitable value,
+   they also include the greatest tree size of the Transparency Log in
+   tree_size, where the current time (according to the User Agent's
+   local clock) minus the rightmost log entry's timestamp is greater
+   than 24 hours and less than 48 hours.  Otherwise, the tree_size field
+   is left empty.  The supported array MUST be sorted in ascending order
+   by transparency_log_id.
+
+   If the User Agent was shown a provisional proof of inclusion the last
+   time that it contacted the host, it includes the provided bearer
+   token in bearer_token.  Otherwise, a random 16 byte string is stored
+   in this field instead.
+
+6.  Security Considerations
+
+6.1.  ClientHello Extension
+
+   Given that ClientHello extensions are sent unencrypted, this
+   extension was designed to avoid unnecessary privacy leaks.  In
+   particular, care was taken to avoid leaking what certificate(s) the
+   User Agent may have been shown in previous connections, and what
+   other hosts the User Agent may have contacted recently.
+
+   User Agents advertise a recently observed tree size for each
+   Transparency Log that they support receiving proofs of inclusion
+   from.  Since User Agents will generally only "observe" various tree
+   sizes of a Transparency Log by communicating with hosts that provide
+   proofs from that Transparency Log, and since different hosts will
+   update their proofs at different times, this may cause a privacy
+   leak.  Specifically, it could happen that a User Agent communicates
+   with a host that uses proofs from a very recently-created tree size.
+   If the User Agent advertised this very recently-created tree size to
+   other hosts, it would reveal who they previously communicated with.
+
+   To mitigate this, User Agents only advertise tree sizes where the
+   timestamp of the rightmost log entry is at least 24 hours old.  This
+   time delay ensures that the proof of inclusion provided by almost any
+   host could've conveyed the same tree size, creating a large anonymity
+   set.
+
+   When a User Agent observes a provisional proof of inclusion from a
+   host, they retain condensed information about it to allow them to
+   later verify that the information it contained was properly
+   integrated into the Transparency Log. The primary avenue for
+   obtaining this verification is advertising knowledge of the
+   provisional proof back to the host that it came from, hoping to get
+   the necessary information in-band.
+
+   Since provisional proofs of inclusion must be issued quickly, they
+   don't have time to build up a large anonymity set with other changes
+   to the Transparency Log. Instead of having User Agents advertise
+   knowledge of a specific provisional proof in their ClientHello, they
+   instead use a bearer token that was provided by the host.  This
+   bearer token is provided in the encrypted Certificate message the
+   first time that the provisional proof is used by the host.
+   Similarly, when the bearer token is redeemed (i.e., when the host
+   provides evidence that the provisional proof was correctly integrated
+   into the Transparency Log), this information is provided in the
+   encrypted Certificate message.  As such, assuming that the bearer
+   token is generated by the host in a secure way, a passive network
+   observer never sees anything that would identify the certificate
+   shown to the User Agent.
+
+   Each bearer token is additionally associated with a pre-shared key,
+   which is provided to the TLS key schedule.  This prevents an active
+   attacker from establishing a TLS connection to the host, advertising
+   an observed bearer token, and learning which certificate is provided
+   that way.
+
+   Finally, note that it is not a goal to prevent an attacker from
+   learning whether a User Agent has previously contacted a host _at
+   all_ before.  The protocol explicitly relies on the User Agent's
+   stored state to send as little data over the wire as possible.  A
+   passive observer of network traffic could trivially determine from
+   the size of the encrypted portion of the handshake messages whether
+   such state was present or not, and therefore whether the host had
+   been contacted before.
+
+7.  IANA Considerations
+
+   *  Codepoint for TLS ClientHello extension "transparency_request"
+
+   *  Codepoint for TLS Certificate extension
+
+   *  Registry for transparency_log_id
+
+8.  References
+
+8.1.  Normative References
 
    [I-D.draft-ietf-keytrans-protocol]
               McMillion, B. and F. Linker, "Key Transparency Protocol",
@@ -524,7 +635,7 @@ Table of Contents
               2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
               May 2017, <https://www.rfc-editor.org/rfc/rfc8174>.
 
-7.2.  Informative References
+8.2.  Informative References
 
    [ct-in-wild]
               Li, B., "Certificate Transparency in the Wild: Exploring
