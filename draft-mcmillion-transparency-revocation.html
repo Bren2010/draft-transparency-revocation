@@ -1198,7 +1198,7 @@ of cascading outages.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
             </ul>
 </li>
           <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
-            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-tls-extensions" class="internal xref">TLS Extensions</a></p>
+            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-tls-extension" class="internal xref">TLS Extension</a></p>
 <ul class="compact toc ulBare ulEmpty">
 <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.1">
                 <p id="section-toc.1-1.5.2.1.1"><a href="#section-5.1" class="auto internal xref">5.1</a>.  <a href="#name-clienthello" class="internal xref">ClientHello</a></p>
@@ -1464,17 +1464,17 @@ to cover a single month of issuance. Outbound bandwidth typically costs between
 site operator would cost the Transparency Log between $6 to $60. For any
 reasonable estimate of the number of site operators on the internet, this
 represents an exceptional burden on a Transparency Log.<a href="#section-3.2-11" class="pilcrow">¶</a></p>
-<p id="section-3.2-12">In previously deployed systems, because of this exceptional cost, site operators
+<p id="section-3.2-12">In previously deployed systems, because of this exceptional cost, Site Operators
 have elected not to do this work themselves and instead outsourced it to
 third-party monitors. Third-party monitors represent a problematic break in the
 security guarantees of the system, as there are no enforceable requirements on
-their behavior. They are not audited for correct behavior like certificate
-authorities are, and there are no technical mechanisms to prevent misbehavior
+their behavior. They are not audited for correct behavior like Certificate
+Authorities are, and there are no technical mechanisms to prevent misbehavior
 like a Transparency Log would have. This has had the real-world impact of
 undermining the claimed transparency guarantees of these systems <span>[<a href="#ct-in-wild" class="cite xref">ct-in-wild</a>]</span>.<a href="#section-3.2-12" class="pilcrow">¶</a></p>
 <p id="section-3.2-13">Key Transparency <span>[<a href="#I-D.draft-ietf-keytrans-protocol" class="cite xref">I-D.draft-ietf-keytrans-protocol</a>]</span> augments a Transparency Log
 with additional structure to allow efficient and verifiable searches for
-specific data. This allows server operators to download only the entries of the
+specific data. This allows Site Operators to download only the entries of the
 Transparency Log that're relevant to them, while still being able to guarantee
 that no certificates have been issued for their domains that they are unaware
 of. As a result of the significantly reduced need for outbound bandwidth,
@@ -1672,19 +1672,23 @@ struct {
 </div>
 </section>
 </div>
-<div id="tls-extensions">
+<div id="tls-extension">
 <section id="section-5">
-      <h2 id="name-tls-extensions">
-<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-tls-extensions" class="section-name selfRef">TLS Extensions</a>
+      <h2 id="name-tls-extension">
+<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-tls-extension" class="section-name selfRef">TLS Extension</a>
       </h2>
+<p id="section-5-1">The following two sections define the ClientHello and Certificate message
+portions of a TLS 1.3 extension. This extension allows the host server to
+provide an inclusion proof for its certificate chain from a Transparency Log
+that the User Agent supports.<a href="#section-5-1" class="pilcrow">¶</a></p>
 <div id="clienthello">
 <section id="section-5.1">
         <h3 id="name-clienthello">
 <a href="#section-5.1" class="section-number selfRef">5.1. </a><a href="#name-clienthello" class="section-name selfRef">ClientHello</a>
         </h3>
-<p id="section-5.1-1">User Agents include an extension in their TLS 1.3 ClientHello to communicate
-which Transparency Logs they support, and whether or not they have previously
-observed a provisional inclusion proof from the host.<a href="#section-5.1-1" class="pilcrow">¶</a></p>
+<p id="section-5.1-1">User Agents include the extension in their ClientHello to communicate which
+Transparency Logs they support, and whether or not they have previously observed
+a provisional inclusion proof from the host.<a href="#section-5.1-1" class="pilcrow">¶</a></p>
 <div class="alignLeft art-text artwork" id="section-5.1-2">
 <pre>
 struct {
@@ -1702,20 +1706,40 @@ struct {
 } TransparencyRequest;
 </pre><a href="#section-5.1-2" class="pilcrow">¶</a>
 </div>
-<p id="section-5.1-3">The ClientHello extension has type "transparency_request" and consists of a
-serialized <code>TransparencyRequest</code> structure in the "extension_data" field.<a href="#section-5.1-3" class="pilcrow">¶</a></p>
+<p id="section-5.1-3">The extension has type "transparency_revocation" and consists of a serialized
+<code>TransparencyRequest</code> structure in the "extension_data" field.<a href="#section-5.1-3" class="pilcrow">¶</a></p>
 <p id="section-5.1-4">User Agents include an entry in the <code>supported</code> array for each Transparency Log
 that they support receiving inclusion proofs from, containing the Transparency
 Log's assigned unique identifier in <code>transparency_log_id</code>. If the User Agent is
 aware of a suitable value, they also include the greatest tree size of the
-Transparency Log in <code>tree_size</code>, where the current time (according to the User
+Transparency Log in <code>tree_size</code> where the current time (according to the User
 Agent's local clock) minus the rightmost log entry's timestamp is greater than
 24 hours and less than 48 hours. Otherwise, the <code>tree_size</code> field is left empty.
 The <code>supported</code> array <span class="bcp14">MUST</span> be sorted in ascending order by
 <code>transparency_log_id</code>.<a href="#section-5.1-4" class="pilcrow">¶</a></p>
-<p id="section-5.1-5">If the User Agent was shown a provisional proof of inclusion the last time that
-it contacted the host, it includes the provided bearer token in <code>bearer_token</code>.
-Otherwise, a random 16 byte string is stored in this field instead.<a href="#section-5.1-5" class="pilcrow">¶</a></p>
+<p id="section-5.1-5">If the User Agent was shown a provisional inclusion proof in a previous
+connection to the host, they will also have received a bearer token and a
+pre-shared key. In all subsequent connections to the host, for as long as the
+User Agent has not yet seen the provisional proof integrated into a subsequent
+tree head, they include the provided bearer token in <code>bearer_token</code> and set the
+PSK input to the TLS key schedule to be the pre-shared key.<a href="#section-5.1-5" class="pilcrow">¶</a></p>
+<p id="section-5.1-6">In the following section, describing the Certificate message extension, the host
+server can either:<a href="#section-5.1-6" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.1-7">
+<li id="section-5.1-7.1">
+            <p id="section-5.1-7.1.1">Respond with the same provisional inclusion proof, in which case the bearer
+token and pre-shared key remain unchanged.<a href="#section-5.1-7.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.1-7.2">
+            <p id="section-5.1-7.2.1">Respond with a new provisional inclusion proof, in which case the host will
+set a new bearer token and pre-shared key.<a href="#section-5.1-7.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.1-7.3">
+            <p id="section-5.1-7.3.1">Respond with a standard (non-provisional) inclusion proof, in which case the
+bearer token and pre-shared key would no longer be provided by the User
+Agent.<a href="#section-5.1-7.3.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
 </section>
 </div>
 </section>
@@ -1730,10 +1754,11 @@ Otherwise, a random 16 byte string is stored in this field instead.<a href="#sec
         <h3 id="name-clienthello-extension">
 <a href="#section-6.1" class="section-number selfRef">6.1. </a><a href="#name-clienthello-extension" class="section-name selfRef">ClientHello Extension</a>
         </h3>
-<p id="section-6.1-1">Given that ClientHello extensions are sent unencrypted, this extension was
-designed to avoid unnecessary privacy leaks. In particular, care was taken to
-avoid leaking what certificate(s) the User Agent may have been shown in previous
-connections, and what other hosts the User Agent may have contacted recently.<a href="#section-6.1-1" class="pilcrow">¶</a></p>
+<p id="section-6.1-1">Given that ClientHello extensions are sent unencrypted, this portion of the
+extension was designed to avoid unnecessary privacy leaks. In particular, care
+was taken to avoid leaking what certificate(s) the User Agent may have been
+shown in previous connections, and what other hosts the User Agent may have
+contacted recently.<a href="#section-6.1-1" class="pilcrow">¶</a></p>
 <p id="section-6.1-2">User Agents advertise a recently observed tree size for each Transparency Log
 that they support receiving proofs of inclusion from. Since User Agents will
 generally only "observe" various tree sizes of a Transparency Log by
@@ -1754,17 +1779,16 @@ primary avenue for obtaining this verification is advertising knowledge of the
 provisional proof back to the host that it came from, hoping to get the
 necessary information in-band.<a href="#section-6.1-4" class="pilcrow">¶</a></p>
 <p id="section-6.1-5">Since provisional proofs of inclusion must be issued quickly, they don't have
-time to build up a large anonymity set with other changes to the Transparency
-Log. Instead of having User Agents advertise knowledge of a specific provisional
-proof in their ClientHello, they instead use a bearer token that was provided by
-the host. This bearer token is provided in the encrypted Certificate message the
-first time that the provisional proof is used by the host. Similarly, when the
-bearer token is redeemed (i.e., when the host provides evidence that the
-provisional proof was correctly integrated into the Transparency Log), this
-information is provided in the encrypted Certificate message. As such, assuming
-that the bearer token is generated by the host in a secure way, a passive
-network observer never sees anything that would identify the certificate shown
-to the User Agent.<a href="#section-6.1-5" class="pilcrow">¶</a></p>
+time to build up a large anonymity set with other hosts. Instead of having User
+Agents advertise knowledge of a specific provisional proof in their ClientHello,
+they instead use a bearer token that was provided by the host. This bearer token
+is provided in the encrypted Certificate message the first time that the
+provisional proof is used by the host. Similarly, when the bearer token is
+redeemed (i.e., when the host shows that the provisional proof was correctly
+integrated into the Transparency Log), this information is provided in the
+encrypted Certificate message. As such, assuming that the bearer token is
+generated by the host in a secure way, a passive network observer never sees
+anything that would identify the certificate shown to the User Agent.<a href="#section-6.1-5" class="pilcrow">¶</a></p>
 <p id="section-6.1-6">Each bearer token is additionally associated with a pre-shared key, which is
 provided to the TLS key schedule. This prevents an active attacker from
 establishing a TLS connection to the host, advertising an observed bearer token,
@@ -1787,13 +1811,10 @@ contacted before.<a href="#section-6.1-7" class="pilcrow">¶</a></p>
       </h2>
 <ul class="normal">
 <li class="normal" id="section-7-1.1">
-          <p id="section-7-1.1.1">Codepoint for TLS ClientHello extension "transparency_request"<a href="#section-7-1.1.1" class="pilcrow">¶</a></p>
+          <p id="section-7-1.1.1">Codepoint for TLS extension "transparency_revocation"<a href="#section-7-1.1.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="section-7-1.2">
-          <p id="section-7-1.2.1">Codepoint for TLS Certificate extension<a href="#section-7-1.2.1" class="pilcrow">¶</a></p>
-</li>
-        <li class="normal" id="section-7-1.3">
-          <p id="section-7-1.3.1">Registry for transparency_log_id<a href="#section-7-1.3.1" class="pilcrow">¶</a></p>
+          <p id="section-7-1.2.1">Registry for transparency_log_id<a href="#section-7-1.2.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 </section>
