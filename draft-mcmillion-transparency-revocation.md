@@ -249,18 +249,18 @@ site operator would cost the Transparency Log between $6 to $60. For any
 reasonable estimate of the number of site operators on the internet, this
 represents an exceptional burden on a Transparency Log.
 
-In previously deployed systems, because of this exceptional cost, site operators
+In previously deployed systems, because of this exceptional cost, Site Operators
 have elected not to do this work themselves and instead outsourced it to
 third-party monitors. Third-party monitors represent a problematic break in the
 security guarantees of the system, as there are no enforceable requirements on
-their behavior. They are not audited for correct behavior like certificate
-authorities are, and there are no technical mechanisms to prevent misbehavior
+their behavior. They are not audited for correct behavior like Certificate
+Authorities are, and there are no technical mechanisms to prevent misbehavior
 like a Transparency Log would have. This has had the real-world impact of
 undermining the claimed transparency guarantees of these systems {{ct-in-wild}}.
 
 Key Transparency {{!I-D.draft-ietf-keytrans-protocol}} augments a Transparency Log
 with additional structure to allow efficient and verifiable searches for
-specific data. This allows server operators to download only the entries of the
+specific data. This allows Site Operators to download only the entries of the
 Transparency Log that're relevant to them, while still being able to guarantee
 that no certificates have been issued for their domains that they are unaware
 of. As a result of the significantly reduced need for outbound bandwidth,
@@ -421,13 +421,18 @@ struct {
 ### Refreshing an Inclusion Proof
 ### Monitoring a Label
 
-# TLS Extensions
+# TLS Extension
+
+The following two sections define the ClientHello and Certificate message
+portions of a TLS 1.3 extension. This extension allows the host server to
+provide an inclusion proof for its certificate chain from a Transparency Log
+that the User Agent supports.
 
 ## ClientHello
 
-User Agents include an extension in their TLS 1.3 ClientHello to communicate
-which Transparency Logs they support, and whether or not they have previously
-observed a provisional inclusion proof from the host.
+User Agents include the extension in their ClientHello to communicate which
+Transparency Logs they support, and whether or not they have previously observed
+a provisional inclusion proof from the host.
 
 ~~~
 struct {
@@ -445,31 +450,46 @@ struct {
 } TransparencyRequest;
 ~~~
 
-The ClientHello extension has type "transparency_request" and consists of a
-serialized `TransparencyRequest` structure in the "extension_data" field.
+The extension has type "transparency_revocation" and consists of a serialized
+`TransparencyRequest` structure in the "extension_data" field.
 
 User Agents include an entry in the `supported` array for each Transparency Log
 that they support receiving inclusion proofs from, containing the Transparency
 Log's assigned unique identifier in `transparency_log_id`. If the User Agent is
 aware of a suitable value, they also include the greatest tree size of the
-Transparency Log in `tree_size`, where the current time (according to the User
+Transparency Log in `tree_size` where the current time (according to the User
 Agent's local clock) minus the rightmost log entry's timestamp is greater than
 24 hours and less than 48 hours. Otherwise, the `tree_size` field is left empty.
 The `supported` array MUST be sorted in ascending order by
 `transparency_log_id`.
 
-If the User Agent was shown a provisional proof of inclusion the last time that
-it contacted the host, it includes the provided bearer token in `bearer_token`.
-Otherwise, a random 16 byte string is stored in this field instead.
+If the User Agent was shown a provisional inclusion proof in a previous
+connection to the host, they will also have received a bearer token and a
+pre-shared key. In all subsequent connections to the host, for as long as the
+User Agent has not yet seen the provisional proof integrated into a subsequent
+tree head, they include the provided bearer token in `bearer_token` and set the
+PSK input to the TLS key schedule to be the pre-shared key.
+
+In the following section, describing the Certificate message extension, the host
+server can either:
+
+1. Respond with the same provisional inclusion proof, in which case the bearer
+   token and pre-shared key remain unchanged.
+2. Respond with a new provisional inclusion proof, in which case the host will
+   set a new bearer token and pre-shared key.
+3. Respond with a standard (non-provisional) inclusion proof, in which case the
+   bearer token and pre-shared key would no longer be provided by the User
+   Agent.
 
 # Security Considerations
 
 ## ClientHello Extension
 
-Given that ClientHello extensions are sent unencrypted, this extension was
-designed to avoid unnecessary privacy leaks. In particular, care was taken to
-avoid leaking what certificate(s) the User Agent may have been shown in previous
-connections, and what other hosts the User Agent may have contacted recently.
+Given that ClientHello extensions are sent unencrypted, this portion of the
+extension was designed to avoid unnecessary privacy leaks. In particular, care
+was taken to avoid leaking what certificate(s) the User Agent may have been
+shown in previous connections, and what other hosts the User Agent may have
+contacted recently.
 
 User Agents advertise a recently observed tree size for each Transparency Log
 that they support receiving proofs of inclusion from. Since User Agents will
@@ -494,17 +514,16 @@ provisional proof back to the host that it came from, hoping to get the
 necessary information in-band.
 
 Since provisional proofs of inclusion must be issued quickly, they don't have
-time to build up a large anonymity set with other changes to the Transparency
-Log. Instead of having User Agents advertise knowledge of a specific provisional
-proof in their ClientHello, they instead use a bearer token that was provided by
-the host. This bearer token is provided in the encrypted Certificate message the
-first time that the provisional proof is used by the host. Similarly, when the
-bearer token is redeemed (i.e., when the host provides evidence that the
-provisional proof was correctly integrated into the Transparency Log), this
-information is provided in the encrypted Certificate message. As such, assuming
-that the bearer token is generated by the host in a secure way, a passive
-network observer never sees anything that would identify the certificate shown
-to the User Agent.
+time to build up a large anonymity set with other hosts. Instead of having User
+Agents advertise knowledge of a specific provisional proof in their ClientHello,
+they instead use a bearer token that was provided by the host. This bearer token
+is provided in the encrypted Certificate message the first time that the
+provisional proof is used by the host. Similarly, when the bearer token is
+redeemed (i.e., when the host shows that the provisional proof was correctly
+integrated into the Transparency Log), this information is provided in the
+encrypted Certificate message. As such, assuming that the bearer token is
+generated by the host in a secure way, a passive network observer never sees
+anything that would identify the certificate shown to the User Agent.
 
 Each bearer token is additionally associated with a pre-shared key, which is
 provided to the TLS key schedule. This prevents an active attacker from
@@ -522,8 +541,7 @@ contacted before.
 
 # IANA Considerations
 
-- Codepoint for TLS ClientHello extension "transparency_request"
-- Codepoint for TLS Certificate extension
+- Codepoint for TLS extension "transparency_revocation"
 - Registry for transparency_log_id
 
 --- back
