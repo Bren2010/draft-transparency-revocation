@@ -3,9 +3,9 @@
 
 
 TLS Working Group                                           B. McMillion
-Internet-Draft                                           15 January 2025
+Internet-Draft                                           16 January 2025
 Intended status: Informational                                          
-Expires: 19 July 2025
+Expires: 20 July 2025
 
 
             Reliable Transparency and Revocation Mechanisms
@@ -51,7 +51,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 19 July 2025.
+   This Internet-Draft will expire on 20 July 2025.
 
 Copyright Notice
 
@@ -77,6 +77,8 @@ Table of Contents
      3.3.  Summary
    4.  Transparency Log
      4.1.  Structure
+       4.1.1.  Subtree Inclusion Proofs
+       4.1.2.  Tree Heads
      4.2.  Endpoints
        4.2.1.  Get Puzzle
        4.2.2.  Add Certificate
@@ -411,11 +413,12 @@ Table of Contents
    } DomainCertificates;
 
    The root field contains the root hash of a Log Tree, which will be
-   referred to as the *Certificate Subtree*. The Certificate Subtree
-   contains all certificate chains that may be presented for a
-   particular domain name (the certificate's Common Name), in the order
-   they were logged.  The leaves of the Certificate Subtree are
-   represented as SubtreeLogLeaf structures, used in place of LogLeaf:
+   referred to as the *Certificate Subtree* to avoid confusion with the
+   top-level Log Tree.  The Certificate Subtree contains all certificate
+   chains that may be presented for a particular domain name (the
+   certificate's Common Name), in the order they were logged.  The
+   leaves of the Certificate Subtree are represented as SubtreeLogLeaf
+   structures, used in place of LogLeaf:
 
    opaque Certificate<0..2^16-1>;
 
@@ -439,6 +442,93 @@ Table of Contents
    When computing PrefixLeaf, the hash of the leaf certificates' Common
    Name is stored in the vrf_output field and the hash of
    DomainCertificates is stored in the commitment field.
+
+4.1.1.  Subtree Inclusion Proofs
+
+   It is often necessary in later parts of this document to provide
+   proofs of inclusion for entries in the Certificate Subtree.  Such
+   proofs are provided as follows:
+
+   struct {
+     uint32 position;
+     uint32 size;
+     InclusionProof inclusion;
+     uint32 first_valid;
+     uint32 invalid_entries<0..2^8-1>;
+   } SubtreeInclusionProof;
+
+   The position field contains the index of the leaf for which inclusion
+   is being proven, while the size field contains the total number of
+   leaves in the Certificate Subtree.  The proof in inclusion allows a
+   recipient to recompute the root hash of the Certificate Subtree,
+   given the correct value for the leaf at position.
+
+   The first_valid and invalid_entries fields duplicate the contents of
+   the DomainCertificates structure.  This allows recipients to verify
+   that the leaf at position is not revoked, and also allows them to
+   recompute the hash of the DomainCertificates structure stored at a
+   given leaf of the Prefix Tree.
+
+   Note that this document follows the pattern established in
+   [I-D.draft-ietf-keytrans-protocol] of requiring each element of an
+   InclusionProof to be a full subtree.  An InclusionProof may also
+   function as a "consistency proof" if the recipient is known to have
+   observed a previous version of the tree.
+
+4.1.2.  Tree Heads
+
+   Transparency Logs are generally expected to add only a small number
+   of new entries to their Log Tree per day.  This keeps proof sizes
+   small and also ensures that, when User Agents advertise having
+   observed a particular tree head, there are a large number of
+   potential hosts that could've conveyed the tree head.  To support
+   providing proofs of inclusion for new submissions quickly,
+   Transparency Logs provide proofs of inclusion against *provisional*
+   heads.  A provisional head is conceptually a work-in-progress log
+   entry that will, after a bounded amount of time, be added to the
+   rightmost edge of the Log Tree.
+
+   struct {
+     uint64 tree_size;
+     uint32 counter;
+     opaque signature<0..2^16-1>;
+   } ProvisionalTreeHead;
+
+   The tree_size field is equal to the tree_size field of the last (non-
+   provisional) TreeHead that was published plus 1.  The counter field
+   starts at zero and is incremented by 1 for each subsequent
+   ProvisionalTreeHead that's published without the creation of a new
+   TreeHead.
+
+   The signature field of both TreeHead and ProvisionalTreeHead
+   structures is computed over a serialized TreeHeadTBS structure:
+
+   struct {
+     CipherSuite ciphersuite;
+     opaque signature_public_key<0..2^16-1>;
+     optional<uint64> maximum_lifetime;
+   } Configuration;
+
+   enum {
+     reserved(0),
+     standard(1),
+     provisional(2),
+     (255)
+   } TreeHeadType;
+
+   struct {
+     Configuration config;
+
+     TreeHeadType tree_head_type;
+     select (TreeHeadTBS.tree_head_type) {
+       case standard:
+         uint64 tree_size;
+       case provisional:
+         uint64 tree_size;
+         uint32 counter;
+     }
+     opaque root<Hash.Nh>;
+   } TreeHeadTBS;
 
 4.2.  Endpoints
 
@@ -537,9 +627,9 @@ Table of Contents
    transparency_log_id.  If the User Agent is aware of a suitable value,
    they also include the greatest tree size of the Transparency Log in
    tree_size where the current time (according to the User Agent's local
-   clock) minus the rightmost log entry's timestamp is greater than 24
-   hours and less than 48 hours.  Otherwise, the tree_size field is left
-   empty.  The supported array MUST be sorted in ascending order by
+   clock) minus the rightmost log entry's timestamp is greater than 8
+   hours and less than 168 hours.  Otherwise, the tree_size field is
+   left empty.  The supported array MUST be sorted in ascending order by
    transparency_log_id.
 
    If the User Agent was shown a provisional inclusion proof in a
@@ -593,6 +683,9 @@ Table of Contents
 
      PrefixProof prefix;
      SubtreeInclusionProof subtree;
+
+     BearerToken bearer_token;
+     opaque pre_shared_key<16>;
    } ProvisionalProof;
 
    struct {
@@ -636,6 +729,10 @@ Table of Contents
    1.  Verify that transparency_log_id is a known Transparency Log that
        was advertised in the ClientHello extension.
 
+   2.  If proof_type is standard:
+
+       1.  Verify that SubtreeInclusionProof.pos
+
 6.  Security Considerations
 
 6.1.  ClientHello Extension
@@ -658,7 +755,7 @@ Table of Contents
    other hosts, it would reveal who they previously communicated with.
 
    To mitigate this, User Agents only advertise tree sizes where the
-   timestamp of the rightmost log entry is at least 24 hours old.  This
+   timestamp of the rightmost log entry is at least 8 hours old.  This
    time delay ensures that the proof of inclusion provided by almost any
    host could've conveyed the same tree size, creating a large anonymity
    set.
