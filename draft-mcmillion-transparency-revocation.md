@@ -512,9 +512,9 @@ struct {
 
 # TLS Extension
 
-The following two sections define the ClientHello and Certificate message
-portions of a TLS 1.3 extension. This extension allows the host server to
-provide an inclusion proof for its certificate chain from a Transparency Log
+The following two sections define the ClientHello, ServerHello, and Certificate
+message portions of a TLS 1.3 extension. This extension allows the host server
+to provide an inclusion proof for its certificate chain from a Transparency Log
 that the User Agent supports.
 
 ## ClientHello
@@ -525,17 +525,22 @@ a provisional inclusion proof from the host.
 
 ~~~ tls
 struct {
-  uint16 transparency_log_id;
-  optional<uint64> tree_size;
-} SupportedTransparencyLog;
-
-struct {
   opaque value<0..2^8-1>;
 } BearerToken;
 
 struct {
+  uint16 transparency_log_id;
+  TreeHeadType tree_head_type;
+  select (SupportedTransparencyLog.tree_head_type) {
+    case standard:
+      uint64 tree_size;
+    case provisional:
+      BearerToken bearer_token;
+  }
+} SupportedTransparencyLog;
+
+struct {
   SupportedTransparencyLog supported<0..2^8-1>;
-  optional<BearerToken> bearer_token;
 } TransparencyRequest;
 ~~~
 
@@ -544,20 +549,49 @@ The extension has type "transparency_revocation" and consists of a serialized
 
 User Agents include an entry in the `supported` array for each Transparency Log
 that they support receiving inclusion proofs from, containing the Transparency
-Log's assigned unique identifier in `transparency_log_id`. If the User Agent is
-aware of a suitable value, they also include the greatest tree size of the
-Transparency Log in `tree_size` where the current time (according to the User
-Agent's local clock) minus the rightmost log entry's timestamp is greater than
-8 hours and less than 168 hours. Otherwise, the `tree_size` field is left empty.
-The `supported` array MUST be sorted in ascending order by
-`transparency_log_id`.
+Log's assigned unique identifier in `transparency_log_id`. The `supported` array
+MUST be sorted in ascending order by `transparency_log_id`.
 
 If the User Agent was shown a provisional inclusion proof in a previous
 connection to the host, they will also have received a bearer token and a
 pre-shared key. In all subsequent connections to the host, for as long as the
 User Agent has not yet seen the provisional proof integrated into a subsequent
-tree head, they include the provided bearer token in `bearer_token` and set the
-PSK input to the TLS key schedule to be the pre-shared key.
+tree head, they advertise a `provisional` tree head type and include the
+provided bearer token in `bearer_token`. If the host indicates the Transparency
+Log in its ServerHello extension, the User Agent will set the PSK input to the
+TLS key schedule to be the pre-shared key.
+
+If the User Agent does not need to resolve a provisional inclusion proof, they
+instead advertise a `standard` tree head type and include the greatest tree size
+of the Transparency Log in `tree_size` where the current time (according to the
+User Agent's local clock) minus the rightmost log entry's timestamp is greater
+than 8 hours and less than 168 hours. If the User Agent is not aware of such a
+tree size, the `tree_size` field is set to 0.
+
+## ServerHello
+
+As was mentioned in the previous section, hosts that receive a TLS 1.3
+connection where the ClientHello has an extension of type
+"transparency_revocation" with a properly formed `extension_data` field have the
+option of providing an inclusion proof for their certificate chain. If this
+inclusion proof builds on top of a previously-shown provisional inclusion proof,
+the PSK input to the TLS key schedule must be set appropriately for the
+connection to succeed. Given that a client may advertise several provisional
+inclusion proofs, the host indicates which pre-shared key (if any) the client
+should use.
+
+If the host intends to provide a proof of inclusion (provisional or not) from a
+Transparency Log where the client has advertised a `provisional` tree head type
+in its ClientHello, the host MUST have an extension of type
+"transparency_revocation" in its ServerHello. The `extension_data` is the unique
+identifier of the Transparency Log:
+
+~~~ tls
+uint16 transparency_log_id;
+~~~
+
+## Certificate
+
 
 In the following section, describing the Certificate message extension, the host
 server can either:
@@ -570,11 +604,7 @@ server can either:
    bearer token and pre-shared key would no longer be provided by the User
    Agent.
 
-## Certificate
 
-Hosts that receive a TLS 1.3 connection where the ClientHello has an extension
-of type "transparency_revocation" with a properly formed `extension_data` field
-have the option of providing an inclusion proof for their certificate chain.
 This is done by adding an extension of type "transparency_revocation" to the
 first CertificateEntry structure in `certificate_list` where the
 `extension_data` field is a serialized TransparencyProof structure:
@@ -686,9 +716,10 @@ is provided in the encrypted Certificate message the first time that the
 provisional proof is used by the host. Similarly, when the bearer token is
 redeemed (i.e., when the host shows that the provisional proof was correctly
 integrated into the Transparency Log), this information is provided in the
-encrypted Certificate message. As such, assuming that the bearer token is
-generated by the host in a secure way, a passive network observer never sees
-anything that would identify the certificate shown to the User Agent.
+encrypted Certificate message. As such, assuming that the bearer token and
+pre-shared key are generated by the host in a secure way, a passive network
+observer never sees anything that would identify the certificate shown to the
+User Agent.
 
 Each bearer token is additionally associated with a pre-shared key, which is
 provided to the TLS key schedule. This prevents an active attacker from
