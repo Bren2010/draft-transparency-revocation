@@ -676,6 +676,30 @@ User Agents verify the proof by the following steps:
 2. If `proof_type` is `standard`:
    1. Verify that `SubtreeInclusionProof.pos`
 
+# Certificate Authority
+
+## Poison Extension
+
+A trivial downgrade attack is possible where a host refuses to acknowledge the
+presence of the "transparency_revocation" TLS extension to attempt to circumvent
+the stronger transparency or non-revocation requirements. Customers of a
+Certificate Authority can mitigate such an attack by including a special
+non-critical poison extension (OID TODO, whose extnValue OCTET STRING contains
+ASN.1 NULL data (0x05 0x00)) in all certificates they issue.
+
+User Agents that advertise the "transparency_revocation" extension in their
+ClientHello MUST reject a certificate that contains the extension if it is not
+provided with an appropriate proof of inclusion.
+
+To detect potential downgrade attacks, Site Operators can monitor the existing
+{{RFC6962}} ecosystem and verify that all certificates issued for their domain
+names include the poison extension.
+
+## Configuration Distribution
+
+TODO ACME extension where CA provides information about which Transparency Logs
+will accept a certificate? To avoid server implementation lock-in.
+
 # Security Considerations
 
 ## ClientHello Extension
@@ -734,11 +758,33 @@ determine from the size of the encrypted portion of the handshake messages
 whether such state was present or not, and therefore whether the host had been
 contacted before.
 
+## Downgrade Prevention
+
+The stronger transparency and non-revocation guarantees this protocol provides
+would be irrelevant if a malicious actor could cause the TLS client to disable
+them at-will. An attacker may have, for example, a revoked certificate to which
+they know the private key. This would allow them to fully intercept a User
+Agent's connection to a host and attempt to impersonate the host. In a
+downgraded version of TLS, the User Agent may not enforce revocation at all and
+therefore the attacker's interception would succeed.
+
+Site Operators that have deployed this protocol and wish to prevent capable TLS
+clients from being downgraded can include a poison extension in their TLS
+certificates, as described in {{poison-extension}}. The poison extension will be
+silently ignored by TLS clients that genuinely do not support it, but will cause
+updated clients to abort the protocol in downgrade scenarios.
+
+Site Operators can monitor the existing {{RFC6962}} ecosystem to detect
+certificates issued for their domains that lack the poison extension,
+potentially permitting downgrades. However, the creation of such a certificate
+without the Site Operator's consent would imply mis-issuance by a Certificate
+Authority rather than abuse of a compromised/revoked certificate.
+
 
 # IANA Considerations
 
 - Codepoint for TLS extension "transparency_revocation"
-- Registry for transparency_log_id
+- Registry for transparency_log_id(?)
 
 --- back
 
