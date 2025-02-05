@@ -45,7 +45,7 @@ of Transport Layer Security (TLS) certificates.  This reliability takes several
 forms. First, it provides browsers a strong guarantee that all certificates they
 accept are truly published and unrevoked at the time they're accepted. Second,
 it allows website operators to monitor for mis-issuances related to their
-domains in a highly efficient way, without relying on third-party services.
+domains in a highly efficient way without relying on third-party services.
 Third, it provides a high degree of operational redundancy to minimize the risk
 of cascading outages.
 
@@ -73,7 +73,7 @@ internet, which consumes a significant amount of outbound bandwidth. Similarly,
 monitoring certificate issuance in CT requires downloading the entire contents
 of all logs, which is several terabytes of data at minimum.
 
-The fundamental purpose for publishing TLS certificates is allow site operators
+The fundamental purpose for publishing TLS certificates is to allow site operators
 to identify and and revoke those certificates which are mis-issued. However,
 revocation systems have historically been plagued by a requirement to "fail
 open". That is, revocation checks would stop being enforced in certain (often,
@@ -143,10 +143,10 @@ the following subsection.
 **Transparency requires stateful verification.** The fundamental goal of any
 transparency system is to ensure that data shown to one participant is equally
 visible to any other participant. This generally involves the use of a
-"transparency log" that publishes data, and may or may not have additional
+"transparency log" that publishes data, which may or may not have additional
 structure to support efficient searches for specific data. Transparency Logs
 must be verified to be linear, in terms of being append-only, and
-internally-consistent with respect to any rules that the log may have about its
+internally-consistent with respect to any rules that the log has about its
 content or structure. Without relying on a third-party to verify these
 properties, which may collude with the Transparency Log, end-users must retain
 state to verify these properties themselves. In addition to ensuring that the
@@ -221,7 +221,7 @@ bounded by the longest conceivable outage that a CA may have (typically at least
 one week).
 
 When specifically considering short-lived certificates as an approach to
-revocation, effectiveness depends on whether or not **all** certificates are
+revocation, effectiveness depends on whether or not **all** certificates in the PKI are
 required to be short-lived. If end-users enforce that all certificates are
 short-lived, and issuance is transparent, then revocation is provided by the
 transparency system as claimed. If certificates may be issued with longer
@@ -273,16 +273,23 @@ In summary, the system described in this document works as follows:
 
 - Site Operators obtain a certificate from a Certificate Authority and submit it
   to one of many trusted Transparency Logs to obtain a proof of inclusion.
-- End-Users that contact the Site Operator's server over TLS receive the
-  certificate and proof of inclusion. End-Users verify that the proof of
-  inclusion is sufficiently recent and that the certificate is unrevoked.
+- User Agents that contact the Site Operator's server over TLS include compact
+  transparency-related state in their ClientHello. The server provides its
+  certificate and proof of inclusion (potentially modified based on the agent's
+  advertised state) in the Certificate message. The User Agent verifies that the
+  proof of inclusion aligns with its state, is sufficiently recent, and
+  indicates the certificate is unrevoked.
 - As time goes on, the current proof of inclusion will become stale. Site
   Operators refresh their proof of inclusion by requesting a new one from the
   Transparency Log.
   - If the first Transparency Log is offline, the Site Operator may failover to
     any of several other qualified Transparency Logs.
-- At any time in the background, the Site Operator may query the Transparency
-  Log and verifiably learn about all new certificates issued for their domain.
+- At any time in the background, the Site Operator may query any of the trusted
+  Transparency Logs and verifiably learn about all new certificates issued for
+  their domain. Since the Key Transparency protocol specifies a "correct"
+  location for a domain's certificates to be stored, which User Agents enforce
+  when verifying proofs of inclusion, requesting all certificates related to a
+  domain always remains highly efficient.
 
 The remainder of this document describes these steps in more detail.
 
@@ -512,7 +519,7 @@ struct {
 
 # TLS Extension
 
-The following two sections define the ClientHello, ServerHello, and Certificate
+The following three subsections define the ClientHello, ServerHello, and Certificate
 message portions of a TLS 1.3 extension. This extension allows the host server
 to provide an inclusion proof for its certificate chain from a Transparency Log
 that the User Agent supports.
@@ -520,7 +527,7 @@ that the User Agent supports.
 ## ClientHello
 
 User Agents include the extension in their ClientHello to communicate which
-Transparency Logs they support, and whether or not they have previously observed
+Transparency Logs they support and whether or not they have previously observed
 a provisional inclusion proof from the host.
 
 ~~~ tls
@@ -550,19 +557,20 @@ The extension has type "transparency_revocation" and consists of a serialized
 User Agents include an entry in the `supported` array for each Transparency Log
 that they support receiving inclusion proofs from, containing the Transparency
 Log's assigned unique identifier in `transparency_log_id`. The `supported` array
-MUST be sorted in ascending order by `transparency_log_id`.
+MUST be sorted in ascending order by `transparency_log_id`, and each
+`transparency_log_id` MUST only be advertised once.
 
 If the User Agent was shown a provisional inclusion proof in a previous
 connection to the host, they will also have received a bearer token and a
 pre-shared key. In all subsequent connections to the host, for as long as the
 User Agent has not yet seen the provisional proof integrated into a subsequent
-tree head, they advertise a `provisional` tree head type and include the
+tree head, they advertise a `provisional` TreeHeadType and include the
 provided bearer token in `bearer_token`. If the host indicates the Transparency
 Log in its ServerHello extension, the User Agent will set the PSK input to the
 TLS key schedule to be the pre-shared key.
 
 If the User Agent does not need to resolve a provisional inclusion proof, they
-instead advertise a `standard` tree head type and include the greatest tree size
+instead advertise a `standard` TreeHeadType and include the greatest tree size
 of the Transparency Log in `tree_size` where the current time (according to the
 User Agent's local clock) minus the rightmost log entry's timestamp is greater
 than 8 hours and less than 168 hours. If the User Agent is not aware of such a
@@ -573,15 +581,13 @@ tree size, the `tree_size` field is set to 0.
 As was mentioned in the previous section, hosts that receive a TLS 1.3
 connection where the ClientHello has an extension of type
 "transparency_revocation" with a properly formed `extension_data` field have the
-option of providing an inclusion proof for their certificate chain. If this
+option of providing an inclusion proof for their certificate chain. When the
 inclusion proof builds on top of a previously-shown provisional inclusion proof,
 the PSK input to the TLS key schedule must be set appropriately for the
-connection to succeed. Given that a client may advertise several provisional
-inclusion proofs, the host indicates which pre-shared key (if any) the client
-should use.
+connection to succeed.
 
 If the host intends to provide a proof of inclusion (provisional or not) from a
-Transparency Log where the client has advertised a `provisional` tree head type
+Transparency Log where the client has advertised a `provisional` TreeHeadType
 in its ClientHello, the host MUST have an extension of type
 "transparency_revocation" in its ServerHello. The `extension_data` is the unique
 identifier of the Transparency Log:
@@ -591,7 +597,6 @@ uint16 transparency_log_id;
 ~~~
 
 ## Certificate
-
 
 In the following section, describing the Certificate message extension, the host
 server can either:
@@ -681,7 +686,7 @@ User Agents verify the proof by the following steps:
 ## Poison Extension
 
 A trivial downgrade attack is possible where a host refuses to acknowledge the
-presence of the "transparency_revocation" TLS extension to attempt to circumvent
+presence of the "transparency_revocation" TLS extension in an attempt to circumvent
 the stronger transparency or non-revocation requirements. Customers of a
 Certificate Authority can mitigate such an attack by including a special
 non-critical poison extension (OID TODO, whose extnValue OCTET STRING contains
@@ -690,10 +695,6 @@ ASN.1 NULL data (0x05 0x00)) in all certificates they issue.
 User Agents that advertise the "transparency_revocation" extension in their
 ClientHello MUST reject a certificate that contains the extension if it is not
 provided with an appropriate proof of inclusion.
-
-To detect potential downgrade attacks, Site Operators can monitor the existing
-{{RFC6962}} ecosystem and verify that all certificates issued for their domain
-names include the poison extension.
 
 ## Configuration Distribution
 
@@ -707,7 +708,7 @@ will accept a certificate? To avoid server implementation lock-in.
 Given that ClientHello extensions are sent unencrypted, this portion of the
 extension was designed to avoid unnecessary privacy leaks. In particular, care
 was taken to avoid leaking what certificate(s) the User Agent may have been
-shown in previous connections, and what other hosts the User Agent may have
+shown in previous connections and what other hosts the User Agent may have
 contacted recently.
 
 User Agents advertise a recently observed tree size for each Transparency Log
@@ -745,10 +746,10 @@ pre-shared key are generated by the host in a secure way, a passive network
 observer never sees anything that would identify the certificate shown to the
 User Agent.
 
-Each bearer token is additionally associated with a pre-shared key, which is
+Each bearer token is additionally associated with a pre-shared key which is
 provided to the TLS key schedule. This prevents an active attacker from
 establishing a TLS connection to the host, advertising an observed bearer token,
-and learning which certificate is provided that way.
+and learning which certificate is provided.
 
 Finally, note that it is not a goal to prevent an attacker from learning whether
 a User Agent has previously contacted a host *at all* before. The protocol
@@ -756,7 +757,8 @@ explicitly relies on the User Agent's stored state to send as little data over
 the wire as possible. A passive observer of network traffic could trivially
 determine from the size of the encrypted portion of the handshake messages
 whether such state was present or not, and therefore whether the host had been
-contacted before.
+contacted before. Similarly, it is not a goal to prevent a host from identifying
+the same User Agent over many connections.
 
 ## Downgrade Prevention
 
@@ -785,6 +787,7 @@ Authority rather than abuse of a compromised/revoked certificate.
 
 - Codepoint for TLS extension "transparency_revocation"
 - Registry for transparency_log_id(?)
+- OID for poison extension
 
 --- back
 
