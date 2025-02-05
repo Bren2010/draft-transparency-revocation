@@ -12,17 +12,17 @@ of Transport Layer Security (TLS) certificates.  This reliability takes several
 forms. First, it provides browsers a strong guarantee that all certificates they
 accept are truly published and unrevoked at the time they're accepted. Second,
 it allows website operators to monitor for mis-issuances related to their
-domains in a highly efficient way, without relying on third-party services.
+domains in a highly efficient way without relying on third-party services.
 Third, it provides a high degree of operational redundancy to minimize the risk
 of cascading outages. 
     " name="description">
-<meta content="xml2rfc 3.25.0" name="generator">
+<meta content="xml2rfc 3.26.0" name="generator">
 <meta content="next generation" name="keyword">
 <meta content="unicorn" name="keyword">
 <meta content="sparkling distributed ledger" name="keyword">
 <meta content="draft-mcmillion-transparency-revocation-latest" name="ietf.draft">
 <!-- Generator version information:
-  xml2rfc 3.25.0
+  xml2rfc 3.26.0
     Python 3.12.8
     ConfigArgParse 1.7
     google-i18n-address 3.1.1
@@ -1053,11 +1053,11 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <thead><tr>
 <td class="left">Internet-Draft</td>
 <td class="center">Reliable Transparency and Revocation Mec</td>
-<td class="right">January 2025</td>
+<td class="right">February 2025</td>
 </tr></thead>
 <tfoot><tr>
 <td class="left">McMillion</td>
-<td class="center">Expires 20 July 2025</td>
+<td class="center">Expires 9 August 2025</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1070,12 +1070,12 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <dd class="internet-draft">draft-mcmillion-transparency-revocation-latest</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2025-01-16" class="published">16 January 2025</time>
+<time datetime="2025-02-05" class="published">5 February 2025</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Informational</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2025-07-20">20 July 2025</time></dd>
+<dd class="expires"><time datetime="2025-08-09">9 August 2025</time></dd>
 <dt class="label-authors">Author:</dt>
 <dd class="authors">
 <div class="author">
@@ -1092,7 +1092,7 @@ of Transport Layer Security (TLS) certificates.  This reliability takes several
 forms. First, it provides browsers a strong guarantee that all certificates they
 accept are truly published and unrevoked at the time they're accepted. Second,
 it allows website operators to monitor for mis-issuances related to their
-domains in a highly efficient way, without relying on third-party services.
+domains in a highly efficient way without relying on third-party services.
 Third, it provides a high degree of operational redundancy to minimize the risk
 of cascading outages.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
 </section>
@@ -1126,7 +1126,7 @@ of cascading outages.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 20 July 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 9 August 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1287,7 +1287,7 @@ CT logs. Logs are required to serve their entire contents to anyone on the
 internet, which consumes a significant amount of outbound bandwidth. Similarly,
 monitoring certificate issuance in CT requires downloading the entire contents
 of all logs, which is several terabytes of data at minimum.<a href="#section-1-3" class="pilcrow">¶</a></p>
-<p id="section-1-4">The fundamental purpose for publishing TLS certificates is allow site operators
+<p id="section-1-4">The fundamental purpose for publishing TLS certificates is to allow site operators
 to identify and and revoke those certificates which are mis-issued. However,
 revocation systems have historically been plagued by a requirement to "fail
 open". That is, revocation checks would stop being enforced in certain (often,
@@ -1397,10 +1397,10 @@ the following subsection.<a href="#section-3.1-3" class="pilcrow">¶</a></p>
 <p id="section-3.2-1"><strong>Transparency requires stateful verification.</strong> The fundamental goal of any
 transparency system is to ensure that data shown to one participant is equally
 visible to any other participant. This generally involves the use of a
-"transparency log" that publishes data, and may or may not have additional
+"transparency log" that publishes data, which may or may not have additional
 structure to support efficient searches for specific data. Transparency Logs
 must be verified to be linear, in terms of being append-only, and
-internally-consistent with respect to any rules that the log may have about its
+internally-consistent with respect to any rules that the log has about its
 content or structure. Without relying on a third-party to verify these
 properties, which may collude with the Transparency Log, end-users must retain
 state to verify these properties themselves. In addition to ensuring that the
@@ -1467,7 +1467,7 @@ category have historically mitigated this risk by providing slower revocation,
 bounded by the longest conceivable outage that a CA may have (typically at least
 one week).<a href="#section-3.2-8" class="pilcrow">¶</a></p>
 <p id="section-3.2-9">When specifically considering short-lived certificates as an approach to
-revocation, effectiveness depends on whether or not <strong>all</strong> certificates are
+revocation, effectiveness depends on whether or not <strong>all</strong> certificates in the PKI are
 required to be short-lived. If end-users enforce that all certificates are
 short-lived, and issuance is transparent, then revocation is provided by the
 transparency system as claimed. If certificates may be issued with longer
@@ -1522,9 +1522,12 @@ it would otherwise.<a href="#section-3.2-13" class="pilcrow">¶</a></p>
 to one of many trusted Transparency Logs to obtain a proof of inclusion.<a href="#section-3.3-2.1.1" class="pilcrow">¶</a></p>
 </li>
           <li class="normal" id="section-3.3-2.2">
-            <p id="section-3.3-2.2.1">End-Users that contact the Site Operator's server over TLS receive the
-certificate and proof of inclusion. End-Users verify that the proof of
-inclusion is sufficiently recent and that the certificate is unrevoked.<a href="#section-3.3-2.2.1" class="pilcrow">¶</a></p>
+            <p id="section-3.3-2.2.1">User Agents that contact the Site Operator's server over TLS include compact
+transparency-related state in their ClientHello. The server provides its
+certificate and proof of inclusion (potentially modified based on the agent's
+advertised state) in the Certificate message. The User Agent verifies that the
+proof of inclusion aligns with its state, is sufficiently recent, and
+indicates the certificate is unrevoked.<a href="#section-3.3-2.2.1" class="pilcrow">¶</a></p>
 </li>
           <li class="normal" id="section-3.3-2.3">
             <p id="section-3.3-2.3.1">As time goes on, the current proof of inclusion will become stale. Site
@@ -1538,8 +1541,12 @@ any of several other qualified Transparency Logs.<a href="#section-3.3-2.3.2.1.1
             </ul>
 </li>
           <li class="normal" id="section-3.3-2.4">
-            <p id="section-3.3-2.4.1">At any time in the background, the Site Operator may query the Transparency
-Log and verifiably learn about all new certificates issued for their domain.<a href="#section-3.3-2.4.1" class="pilcrow">¶</a></p>
+            <p id="section-3.3-2.4.1">At any time in the background, the Site Operator may query any of the trusted
+Transparency Logs and verifiably learn about all new certificates issued for
+their domain. Since the Key Transparency protocol specifies a "correct"
+location for a domain's certificates to be stored, which User Agents enforce
+when verifying proofs of inclusion, requesting all certificates related to a
+domain always remains highly efficient.<a href="#section-3.3-2.4.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
 <p id="section-3.3-3">The remainder of this document describes these steps in more detail.<a href="#section-3.3-3" class="pilcrow">¶</a></p>
@@ -1800,7 +1807,7 @@ struct {
       <h2 id="name-tls-extension">
 <a href="#section-5" class="section-number selfRef">5. </a><a href="#name-tls-extension" class="section-name selfRef">TLS Extension</a>
       </h2>
-<p id="section-5-1">The following two sections define the ClientHello, ServerHello, and Certificate
+<p id="section-5-1">The following three subsections define the ClientHello, ServerHello, and Certificate
 message portions of a TLS 1.3 extension. This extension allows the host server
 to provide an inclusion proof for its certificate chain from a Transparency Log
 that the User Agent supports.<a href="#section-5-1" class="pilcrow">¶</a></p>
@@ -1810,7 +1817,7 @@ that the User Agent supports.<a href="#section-5-1" class="pilcrow">¶</a></p>
 <a href="#section-5.1" class="section-number selfRef">5.1. </a><a href="#name-clienthello" class="section-name selfRef">ClientHello</a>
         </h3>
 <p id="section-5.1-1">User Agents include the extension in their ClientHello to communicate which
-Transparency Logs they support, and whether or not they have previously observed
+Transparency Logs they support and whether or not they have previously observed
 a provisional inclusion proof from the host.<a href="#section-5.1-1" class="pilcrow">¶</a></p>
 <div class="lang-tls sourcecode" id="section-5.1-2">
 <pre>
@@ -1839,17 +1846,18 @@ struct {
 <p id="section-5.1-4">User Agents include an entry in the <code>supported</code> array for each Transparency Log
 that they support receiving inclusion proofs from, containing the Transparency
 Log's assigned unique identifier in <code>transparency_log_id</code>. The <code>supported</code> array
-<span class="bcp14">MUST</span> be sorted in ascending order by <code>transparency_log_id</code>.<a href="#section-5.1-4" class="pilcrow">¶</a></p>
+<span class="bcp14">MUST</span> be sorted in ascending order by <code>transparency_log_id</code>, and each
+<code>transparency_log_id</code> <span class="bcp14">MUST</span> only be advertised once.<a href="#section-5.1-4" class="pilcrow">¶</a></p>
 <p id="section-5.1-5">If the User Agent was shown a provisional inclusion proof in a previous
 connection to the host, they will also have received a bearer token and a
 pre-shared key. In all subsequent connections to the host, for as long as the
 User Agent has not yet seen the provisional proof integrated into a subsequent
-tree head, they advertise a <code>provisional</code> tree head type and include the
+tree head, they advertise a <code>provisional</code> TreeHeadType and include the
 provided bearer token in <code>bearer_token</code>. If the host indicates the Transparency
 Log in its ServerHello extension, the User Agent will set the PSK input to the
 TLS key schedule to be the pre-shared key.<a href="#section-5.1-5" class="pilcrow">¶</a></p>
 <p id="section-5.1-6">If the User Agent does not need to resolve a provisional inclusion proof, they
-instead advertise a <code>standard</code> tree head type and include the greatest tree size
+instead advertise a <code>standard</code> TreeHeadType and include the greatest tree size
 of the Transparency Log in <code>tree_size</code> where the current time (according to the
 User Agent's local clock) minus the rightmost log entry's timestamp is greater
 than 8 hours and less than 168 hours. If the User Agent is not aware of such a
@@ -1864,14 +1872,12 @@ tree size, the <code>tree_size</code> field is set to 0.<a href="#section-5.1-6"
 <p id="section-5.2-1">As was mentioned in the previous section, hosts that receive a TLS 1.3
 connection where the ClientHello has an extension of type
 "transparency_revocation" with a properly formed <code>extension_data</code> field have the
-option of providing an inclusion proof for their certificate chain. If this
+option of providing an inclusion proof for their certificate chain. When the
 inclusion proof builds on top of a previously-shown provisional inclusion proof,
 the PSK input to the TLS key schedule must be set appropriately for the
-connection to succeed. Given that a client may advertise several provisional
-inclusion proofs, the host indicates which pre-shared key (if any) the client
-should use.<a href="#section-5.2-1" class="pilcrow">¶</a></p>
+connection to succeed.<a href="#section-5.2-1" class="pilcrow">¶</a></p>
 <p id="section-5.2-2">If the host intends to provide a proof of inclusion (provisional or not) from a
-Transparency Log where the client has advertised a <code>provisional</code> tree head type
+Transparency Log where the client has advertised a <code>provisional</code> TreeHeadType
 in its ClientHello, the host <span class="bcp14">MUST</span> have an extension of type
 "transparency_revocation" in its ServerHello. The <code>extension_data</code> is the unique
 identifier of the Transparency Log:<a href="#section-5.2-2" class="pilcrow">¶</a></p>
@@ -2004,7 +2010,7 @@ advertised in the ClientHello extension.<a href="#section-5.3-8.1.1" class="pilc
 <a href="#section-6.1" class="section-number selfRef">6.1. </a><a href="#name-poison-extension" class="section-name selfRef">Poison Extension</a>
         </h3>
 <p id="section-6.1-1">A trivial downgrade attack is possible where a host refuses to acknowledge the
-presence of the "transparency_revocation" TLS extension to attempt to circumvent
+presence of the "transparency_revocation" TLS extension in an attempt to circumvent
 the stronger transparency or non-revocation requirements. Customers of a
 Certificate Authority can mitigate such an attack by including a special
 non-critical poison extension (OID TODO, whose extnValue OCTET STRING contains
@@ -2012,9 +2018,6 @@ ASN.1 NULL data (0x05 0x00)) in all certificates they issue.<a href="#section-6.
 <p id="section-6.1-2">User Agents that advertise the "transparency_revocation" extension in their
 ClientHello <span class="bcp14">MUST</span> reject a certificate that contains the extension if it is not
 provided with an appropriate proof of inclusion.<a href="#section-6.1-2" class="pilcrow">¶</a></p>
-<p id="section-6.1-3">To detect potential downgrade attacks, Site Operators can monitor the existing
-<span>[<a href="#RFC6962" class="cite xref">RFC6962</a>]</span> ecosystem and verify that all certificates issued for their domain
-names include the poison extension.<a href="#section-6.1-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="configuration-distribution">
@@ -2041,7 +2044,7 @@ will accept a certificate? To avoid server implementation lock-in.<a href="#sect
 <p id="section-7.1-1">Given that ClientHello extensions are sent unencrypted, this portion of the
 extension was designed to avoid unnecessary privacy leaks. In particular, care
 was taken to avoid leaking what certificate(s) the User Agent may have been
-shown in previous connections, and what other hosts the User Agent may have
+shown in previous connections and what other hosts the User Agent may have
 contacted recently.<a href="#section-7.1-1" class="pilcrow">¶</a></p>
 <p id="section-7.1-2">User Agents advertise a recently observed tree size for each Transparency Log
 that they support receiving proofs of inclusion from. Since User Agents will
@@ -2074,17 +2077,18 @@ encrypted Certificate message. As such, assuming that the bearer token and
 pre-shared key are generated by the host in a secure way, a passive network
 observer never sees anything that would identify the certificate shown to the
 User Agent.<a href="#section-7.1-5" class="pilcrow">¶</a></p>
-<p id="section-7.1-6">Each bearer token is additionally associated with a pre-shared key, which is
+<p id="section-7.1-6">Each bearer token is additionally associated with a pre-shared key which is
 provided to the TLS key schedule. This prevents an active attacker from
 establishing a TLS connection to the host, advertising an observed bearer token,
-and learning which certificate is provided that way.<a href="#section-7.1-6" class="pilcrow">¶</a></p>
+and learning which certificate is provided.<a href="#section-7.1-6" class="pilcrow">¶</a></p>
 <p id="section-7.1-7">Finally, note that it is not a goal to prevent an attacker from learning whether
 a User Agent has previously contacted a host <em>at all</em> before. The protocol
 explicitly relies on the User Agent's stored state to send as little data over
 the wire as possible. A passive observer of network traffic could trivially
 determine from the size of the encrypted portion of the handshake messages
 whether such state was present or not, and therefore whether the host had been
-contacted before.<a href="#section-7.1-7" class="pilcrow">¶</a></p>
+contacted before. Similarly, it is not a goal to prevent a host from identifying
+the same User Agent over many connections.<a href="#section-7.1-7" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="downgrade-prevention">
@@ -2124,6 +2128,9 @@ Authority rather than abuse of a compromised/revoked certificate.<a href="#secti
 </li>
         <li class="normal" id="section-8-1.2">
           <p id="section-8-1.2.1">Registry for transparency_log_id(?)<a href="#section-8-1.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="section-8-1.3">
+          <p id="section-8-1.3.1">OID for poison extension<a href="#section-8-1.3.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 </section>
