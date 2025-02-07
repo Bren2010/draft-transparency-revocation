@@ -316,10 +316,16 @@ Tree described in {{!I-D.draft-ietf-keytrans-protocol}}, with two exceptions:
 the search keys that are used to navigate the Prefix Tree, and the
 data committed to by each Prefix Tree leaf node, are different.
 
-The search key used to navigate the Prefix Tree is the hash of the Common Name
-field of a TLS certificate. The hash function used corresponds to the
-ciphersuite hash function. No VRF is used, or version counter is included in the
-hash function input, as they would be in {{!I-D.draft-ietf-keytrans-protocol}}.
+The search key used to navigate the Prefix Tree is a function of the
+certificate's **reference identifier** in the TLS handshake. The reference
+identifier is the single domain name or IP address that the TLS client will
+verify the certificate against. When the reference identifier is a domain name,
+it is reduced to the registrable domain ("example.com" instead of
+"sub.example.com"). The registrable domain or IP address is then hashed,
+producing the value which is used to navigate the Prefix Tree. The hash function
+used corresponds to the ciphersuite hash function. No VRF is used, or version
+counter is included in the hash function input, as they would be in
+{{!I-D.draft-ietf-keytrans-protocol}}.
 
 Rather than a privacy-preserving commitment, each Prefix Tree leaf contains the
 hash of a `DomainCertificates` structure:
@@ -335,8 +341,8 @@ struct {
 The `root` field contains the root hash of a Log Tree, which will be referred to
 as the **Certificate Subtree** to avoid confusion with the top-level Log Tree.
 The Certificate Subtree contains all certificate chains that may be presented
-for a particular domain name (the certificate's Common Name), in the order they
-were logged. The leaves of the Certificate Subtree are represented as
+for a particular registrable domain or IP address, in the order they were
+logged. The leaves of the Certificate Subtree are represented as
 `SubtreeLogLeaf` structures, used in place of `LogLeaf`:
 
 ~~~ tls
@@ -359,9 +365,9 @@ of the Log Tree's rightmost leaf. However, Transparency Logs do not have a
 proactive responsibility to keep the `first_valid` field updated; it is simply
 provided as a mechanism to drain `invalid_entries`.
 
-When computing `PrefixLeaf`, the hash of the leaf certificates' Common Name is
-stored in the `vrf_output` field and the hash of `DomainCertificates` is stored
-in the `commitment` field.
+When computing `PrefixLeaf`, the hash of the leaf certificate's reference
+identifier is stored in the `vrf_output` field and the hash of
+`DomainCertificates` is stored in the `commitment` field.
 
 ### Subtree Inclusion Proofs
 
@@ -392,8 +398,8 @@ DomainCertificates structure stored at a given leaf of the Prefix Tree.
 
 Note that this document follows the pattern established in
 {{!I-D.draft-ietf-keytrans-protocol}} of requiring each element of an
-InclusionProof to be a full subtree. An InclusionProof may also function as a
-"consistency proof" if the recipient is known to have observed a previous
+InclusionProof to be a balanced subtree. An InclusionProof may also function as
+a "consistency proof" if the recipient is known to have observed a previous
 version of the tree.
 
 ### Tree Heads
@@ -416,7 +422,7 @@ struct {
 ~~~
 
 The `tree_size` field is equal to the `tree_size` field of the last
-(non-provisional) TreeHead that was published plus 1.  The `counter` field
+(non-provisional) TreeHead that was published.  The `counter` field
 starts at zero and is incremented by 1 for each subsequent ProvisionalTreeHead
 that's published without the creation of a new TreeHead.
 
@@ -427,6 +433,9 @@ computed over a serialized TreeHeadTBS structure:
 struct {
   CipherSuite ciphersuite;
   opaque signature_public_key<0..2^16-1>;
+
+  uint64 max_ahead;
+  unit64 max_behind;
   optional<uint64> maximum_lifetime;
 } Configuration;
 
@@ -598,40 +607,44 @@ uint16 transparency_log_id;
 
 ## Certificate
 
-In the following section, describing the Certificate message extension, the host
-server can either:
-
-1. Respond with the same provisional inclusion proof, in which case the bearer
-   token and pre-shared key remain unchanged.
-2. Respond with a new provisional inclusion proof, in which case the host will
-   set a new bearer token and pre-shared key.
-3. Respond with a standard (non-provisional) inclusion proof, in which case the
-   bearer token and pre-shared key would no longer be provided by the User
-   Agent.
-
-
-This is done by adding an extension of type "transparency_revocation" to the
-first CertificateEntry structure in `certificate_list` where the
-`extension_data` field is a serialized TransparencyProof structure:
+The host server provides an inclusion proof for its certificate chain by adding
+an extension of type "transparency_revocation" to the first CertificateEntry
+structure in `certificate_list`. The `extension_data` field is a serialized
+TransparencyProof structure:
 
 ~~~ tls
 enum {
   reserved(0),
   standard(1),
   provisional(2),
-  same_head(3),
+  same_standard(3),
+  same_provisional(4),
   (255)
 } TransparencyProofType;
 
 struct {
+  uint32 size
+  uint32 first_valid;
+  uint32 invalid_entries<0..2^8-1>;
+} SequencingProof;
+
+struct {
   TreeHead tree_head;
   CombinedTreeProof combined;
+  select (condition) {
+    case true:
+      SequencingProof sequencing;
+  }
   SubtreeInclusionProof subtree;
 } StandardProof;
 
 struct {
   ProvisionalTreeHead tree_head;
   CombinedTreeProof combined;
+  select (condition) {
+    case true:
+      SequencingProof sequencing;
+  }
 
   PrefixProof prefix;
   SubtreeInclusionProof subtree;
@@ -643,7 +656,12 @@ struct {
 struct {
   PrefixProof prefix;
   SubtreeInclusionProof subtree;
-} SameHeadProof;
+} SameStandardProof;
+
+struct {
+  uint32 position;
+  InclusionProof inclusion;
+} SameProvisionalProof;
 
 struct {
   uint16 transparency_log_id;
@@ -654,32 +672,49 @@ struct {
       StandardProof proof;
     case provisional:
       ProvisionalProof proof;
-    case same_head:
-      SameHeadProof proof;
+    case same_standard:
+      SameStandardProof proof;
+    case same_provisional:
+      SameProvisionalProof proof;
   };
 } TransparencyProof;
 ~~~
 
 The `transparency_log_id` field specifies the Transparency Log that the proof
-comes from. The `proof_type` field specifies the type of proof that follows:
+comes from, while the `proof_type` field specifies the type of proof that
+follows.
 
-- `standard`: The proof of inclusion is against a log entry that is currently
-  published by the Transparency Log, but more recent than the User Agent may be
-  aware of.
-- `provisional`: The proof of inclusion is against a log entry that is not yet
-  published by the Transparency Log, but will be published within a bounded
-  amount of time.
-- `same_head`: The proof of inclusion is either against the same provisional
-  head that originated `TransparencyRequest.bearer_token` (if present), or
-  otherwise against the same version of the Transparency Log tree advertised in
-  `TransparencyRequest.supported`
+When `proof_type` is set to `same_standard`, this indicates that the inclusion
+proof is against the same tree head that was specified  in the
+`SupportedTransparencyLog` structure for the chosen Transparency Log. These
+proofs are verified as follows:
 
-User Agents verify the proof by the following steps:
+- Verify that the ClientHello advertised a standard tree head type for the
+  chosen Transparency Log.
+- For the advertised tree head, verify that the rightmost log entry's timestamp
+  is within the bounds set by `max_ahead` and `max_behind`.
+- Verify that `SameStandardProof.subtree.{first_valid, invalid_entries}` do not
+  exclude `SameStandardProof.subtree.position`.
+- Interpret `SameStandardProof.subtree.inclusion` as an inclusion proof for the
+  log entry at `position` where the full subtrees are already known.
+- Compute the root hash of the Log Tree and verify that it matches the retained
+  value.
 
-1. Verify that `transparency_log_id` is a known Transparency Log that was
-   advertised in the ClientHello extension.
-2. If `proof_type` is `standard`:
-   1. Verify that `SubtreeInclusionProof.pos`
+When `proof_type` is set to `same_provisional`, this indicates that the
+inclusion proof is against the same provisional tree head that was previously
+provided by the host. These proofs are verified as follows:
+
+- Verify that the ClientHello advertised a provisional tree head type for the
+  chosen Transparency Log.
+- For the advertised tree head, verify that the rightmost log entry's timestamp
+  is within the bounds set by `max_ahead` and `max_behind`.
+- Verify that the previously-retained `first_valid` and `invalid_entries` do not
+  exclude `SameProvisionalProof.position`.
+- Interpret `SameProvisionalProof.inclusion` as an inclusion proof for the log
+  entry at `position` where the full subtrees are already known.
+- Compute the root hash of the Certificate Subtree and verify that it matches
+  the retained value.
+
 
 # Certificate Authority
 
