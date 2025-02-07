@@ -1720,11 +1720,22 @@ struct {
     case provisional:
       uint64 tree_size;
       uint32 counter;
+      opaque prefix_root&lt;Hash.Nh&gt;;
   }
   opaque root&lt;Hash.Nh&gt;;
 } TreeHeadTBS;
 </pre><a href="#section-4.1.2-5" class="pilcrow">¶</a>
 </div>
+<p id="section-4.1.2-6">The <code>max_ahead</code> and <code>max_behind</code> fields contain the maximum amount of time in
+milliseconds that a tree head may be ahead of or behind the user's local clock
+without being rejected. If the Transparency Log has chosen to define a maximum
+lifetime for log entries, per Section 5.2 of
+<span>[<a href="#I-D.draft-ietf-keytrans-protocol" class="cite xref">I-D.draft-ietf-keytrans-protocol</a>]</span>, this duration in milliseconds is stored
+in the <code>maximum_lifetime</code> field.<a href="#section-4.1.2-6" class="pilcrow">¶</a></p>
+<p id="section-4.1.2-7">When the TreeHeadTBS structure is for a <code>provisional</code> tree head type,
+<code>prefix_root</code> contains the work-in-progress root hash of the Prefix Tree. This
+value may change further before it is added as a new rightmost log entry.
+However, clients will enforce that no certificates are removed or un-revoked.<a href="#section-4.1.2-7" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
@@ -2069,9 +2080,8 @@ the Prefix Tree leaf hash for the subsequent log entry.<a href="#section-5.3-5.6
 </li>
               <li class="normal" id="section-5.3-5.6.2.3">
                 <p id="section-5.3-5.6.2.3.1">With the Prefix Tree leaf hash(es), compute the root hash of the Log Tree
-with <code>combined.inclusion</code>. Note that the full subtrees of the Log Tree
-advertised by the client are assumed to already be known and will not be
-repeated.<a href="#section-5.3-5.6.2.3.1" class="pilcrow">¶</a></p>
+with <code>combined</code>. Note that the full subtrees of the Log Tree advertised by
+the client are assumed to already be known and will not be repeated.<a href="#section-5.3-5.6.2.3.1" class="pilcrow">¶</a></p>
 </li>
             </ul>
 </li>
@@ -2081,7 +2091,101 @@ proof is against a log entry that is not yet published by the Transparency Log.
 These proofs are verified as follows:<a href="#section-5.3-6" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="section-5.3-7.1">
-            <p id="section-5.3-7.1.1">TODO<a href="#section-5.3-7.1.1" class="pilcrow">¶</a></p>
+            <p id="section-5.3-7.1.1">If the client advertised a <code>standard</code> tree head type, verify that
+<code>tree_head.size</code> is greater than or equal to that of the advertised tree head.
+If the client advertised a <code>provisional</code> tree head type, verify that
+<code>tree_head.size</code> is greater than that of the advertised tree head, or that
+<code>tree_head.size</code> is equal and <code>tree_head.counter</code> is greater than that of the
+advertised tree head.<a href="#section-5.3-7.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-5.3-7.2">
+            <p id="section-5.3-7.2.1">Verify <code>combined</code> as executing the following proofs in this order:<a href="#section-5.3-7.2.1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-5.3-7.2.2.1">
+                <p id="section-5.3-7.2.2.1.1">Updating the view of the tree (Section 10.3.1 of
+<span>[<a href="#I-D.draft-ietf-keytrans-protocol" class="cite xref">I-D.draft-ietf-keytrans-protocol</a>]</span>). Note that verifying this proof step
+also verifies that the rightmost log entry's timestamp is within the bounds
+set by <code>max_ahead</code> and `max_behind.<a href="#section-5.3-7.2.2.1.1" class="pilcrow">¶</a></p>
+</li>
+              <li class="normal" id="section-5.3-7.2.2.2">
+                <p id="section-5.3-7.2.2.2.1">If a provisional tree head was advertised by the client and the subsequent
+log entry exists, then the subsequent log entry's timestamp and a
+<code>PrefixProof</code> from it are added to <code>combined</code>.<a href="#section-5.3-7.2.2.2.1" class="pilcrow">¶</a></p>
+</li>
+            </ul>
+</li>
+          <li class="normal" id="section-5.3-7.3">
+            <p id="section-5.3-7.3.1">The <code>sequencing</code> field must be present when a provisional tree head was
+advertised by the client and the subsequent log entry exists. The <code>sequencing</code>
+field contains the size of the Certificate Subtree and the <code>first_valid</code> and
+<code>invalid_entries</code> fields of the <code>DomainCertificates</code> structure as it exists in
+the subsequent log entry. If present:<a href="#section-5.3-7.3.1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-5.3-7.3.2.1">
+                <p id="section-5.3-7.3.2.1.1">Verify that <code>sequencing.size</code> is greater than or equal to the retained size
+of the Certificate Subtree.<a href="#section-5.3-7.3.2.1.1" class="pilcrow">¶</a></p>
+</li>
+              <li class="normal" id="section-5.3-7.3.2.2">
+                <p id="section-5.3-7.3.2.2.1">Verify that <code>sequencing.{first_valid, invalid_entries}</code> would not unrevoke
+any previously-revoked certificates.<a href="#section-5.3-7.3.2.2.1" class="pilcrow">¶</a></p>
+</li>
+            </ul>
+</li>
+          <li class="normal" id="section-5.3-7.4">
+            <p id="section-5.3-7.4.1">If the <code>sequencing</code> field is present, compare the following fields in
+<code>subtree</code> against those in <code>sequencing</code>; if the <code>sequencing</code> field is not
+present but the client advertised a provisional tree head, compare the fields
+against the advertised provisional tree head:<a href="#section-5.3-7.4.1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-5.3-7.4.2.1">
+                <p id="section-5.3-7.4.2.1.1">Verify that <code>subtree.size</code> is greater than or equal.<a href="#section-5.3-7.4.2.1.1" class="pilcrow">¶</a></p>
+</li>
+              <li class="normal" id="section-5.3-7.4.2.2">
+                <p id="section-5.3-7.4.2.2.1">Verify that <code>subtree.{first_valid, invalid_entries}</code> would not unrevoke any
+previously-revoked certificates.<a href="#section-5.3-7.4.2.2.1" class="pilcrow">¶</a></p>
+</li>
+            </ul>
+</li>
+          <li class="normal" id="section-5.3-7.5">
+            <p id="section-5.3-7.5.1">Verify that <code>subtree.{first_valid, invalid_entries}</code> do not exclude
+<code>subtree.position</code>.<a href="#section-5.3-7.5.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-5.3-7.6">
+            <p id="section-5.3-7.6.1">Compute the root hash of the Log Tree and the root hash of the provisional
+Prefix Tree:<a href="#section-5.3-7.6.1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-5.3-7.6.2.1">
+                <p id="section-5.3-7.6.2.1.1">Compute the root hash of the Certificate Subtree as it exists in the
+provisional Prefix Tree. If the <code>sequencing</code> field is present, also compute
+the root hash of the Certificate Subtree as it exists in the subsequent log
+entry. Both of these are done by interpreting <code>subtree.inclusion</code> as a proof
+of inclusion in the Certificate Subtree for <code>subtree.position</code>. If the
+<code>sequencing</code> field is present, <code>subtree.inclusion</code> additionally contains the
+minimum set of node hashes necessary to compute the root of the Certificate
+Subtree at size <code>sequencing.size</code>. If the client advertised a provisional
+tree head, the full subtrees of the Certificate Subtree as it existed in the
+advertised tree head are assumed to be known and will not be repeated.<a href="#section-5.3-7.6.2.1.1" class="pilcrow">¶</a></p>
+</li>
+              <li class="normal" id="section-5.3-7.6.2.2">
+                <p id="section-5.3-7.6.2.2.1">With the root hash of the Certificate Subtree and the other fields in
+<code>subtree</code>, compute the Prefix Tree leaf hash for the provisional Prefix
+Tree. If the <code>sequencing</code> field is present, use the fields of <code>sequencing</code>
+to compute the Prefix Tree leaf hash for the subsequent log entry.<a href="#section-5.3-7.6.2.2.1" class="pilcrow">¶</a></p>
+</li>
+              <li class="normal" id="section-5.3-7.6.2.3">
+                <p id="section-5.3-7.6.2.3.1">Compute the root hash of the Log Tree with <code>combined</code> (which may require the
+Prefix Tree leaf hash for the subsequent log entry). Note that the full
+subtrees of the Log Tree advertised by the client are assumed to already be
+known and will not be repeated.<a href="#section-5.3-7.6.2.3.1" class="pilcrow">¶</a></p>
+</li>
+              <li class="normal" id="section-5.3-7.6.2.4">
+                <p id="section-5.3-7.6.2.4.1">With the provisional Prefix Tree leaf hash and the proof in <code>prefix</code>,
+compute the provisional Prefix Tree root hash.<a href="#section-5.3-7.6.2.4.1" class="pilcrow">¶</a></p>
+</li>
+            </ul>
+</li>
+          <li class="normal" id="section-5.3-7.7">
+            <p id="section-5.3-7.7.1">Verify the signature in <code>tree_head.signature</code>.<a href="#section-5.3-7.7.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
 <p id="section-5.3-8">When <code>proof_type</code> is set to <code>same_standard</code>, this indicates that the inclusion
