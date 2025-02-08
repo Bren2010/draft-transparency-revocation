@@ -851,6 +851,66 @@ provided by the host. These proofs are verified as follows:
   will not be repeated. Verify that the computed value matches the retained
   value.
 
+<!-- TODO Include extra resolutions for provisional proofs from other logs in the
+TransparencyProof structure. -->
+
+# Operational Considerations
+
+## Client State
+
+Clients retain the following state:
+
+- For each trusted Transparency Log:
+  - The timestamp and Prefix Tree root hash for each log entry whose timestamp
+    is more recent than `max_behind`.
+  - The full subtrees of the Log Tree ending just before the leftmost retained
+    log entry.
+- For each provisional inclusion proof observed that has not been replaced with
+  a superseding provisional inclusion proof, or been shown to be included in a
+  properly-sequenced log entry:
+  - The registrable domain or IP address of the host that presented the
+    provisional proof.
+  - The ProvisionalTreeHead structure
+  - The `size`, `first_valid`, and `invalid_entries` fields of the
+    `SubtreeInclusionProof` structure.
+  - The full subtrees of the Certificate Subtree.
+  - The bearer token and pre-shared key associated with the provisional
+    inclusion proof.
+
+After a client successfully verifies a proof from {{certificate}}, they update
+their stored state accordingly. When a client advertises a provisional tree head
+to the server and the server responds with a standard proof type, the server's
+response will necessarily include proof that the certificate in the provisional
+tree head was correctly included in the subsequent log entry. As such, the
+information retained about the provisional inclusion proof is deleted.
+Similarly, when a client advertises a provisional tree head to the server and
+the server responds with a provisional proof type, the server's response will
+contain proof that the new provisional inclusion proof supersedes (i.e.,
+contains all the same certificates) as the previous one. As such, state for the
+previous provisional inclusion proof is deleted and replaced with state for the
+new one.
+
+Clients MUST only update their stored state once a proof has been fully and
+successfully verified, and once the view of a Transparency Log that's been
+presented in a proof has been verified to be consistent with the client's stored
+state.
+
+## Server Behavior
+
+To prevent connection failure, it's critical that servers that implement the TLS
+extension in {{tls-extension}} always have a satisfactory proof to offer to
+clients. Servers MUST implement the automatic refreshing of proofs, and MUST
+implement automatic failover between multiple trusted Transparency Logs in the
+event that one is temporarily unavailable.
+
+Additionally, servers MUST generate the bearer tokens that are provided to
+clients in a way that, when the bearer token is advertised back to the server,
+does not degrade the client's privacy. One suggested way to do this would be to
+make the bearer token the symmetric encryption of a 12- or 16-byte random value.
+This random value would then be used to compute the pre-shared key to give the
+client. When the client advertises the bearer token back later, it can be
+decrypted by the server and used to re-compute the pre-shared key for the
+connection.
 
 # Certificate Authority
 
