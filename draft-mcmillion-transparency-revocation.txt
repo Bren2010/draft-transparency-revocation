@@ -3,9 +3,9 @@
 
 
 TLS Working Group                                           B. McMillion
-Internet-Draft                                           7 February 2025
+Internet-Draft                                           8 February 2025
 Intended status: Informational                                          
-Expires: 11 August 2025
+Expires: 12 August 2025
 
 
             Reliable Transparency and Revocation Mechanisms
@@ -51,7 +51,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 11 August 2025.
+   This Internet-Draft will expire on 12 August 2025.
 
 Copyright Notice
 
@@ -87,16 +87,19 @@ Table of Contents
      5.1.  ClientHello
      5.2.  ServerHello
      5.3.  Certificate
-   6.  Certificate Authority
-     6.1.  Poison Extension
-     6.2.  Configuration Distribution
-   7.  Security Considerations
-     7.1.  ClientHello Extension
-     7.2.  Downgrade Prevention
-   8.  IANA Considerations
-   9.  References
-     9.1.  Normative References
-     9.2.  Informative References
+   6.  Operational Considerations
+     6.1.  Client State
+     6.2.  Server Behavior
+   7.  Certificate Authority
+     7.1.  Poison Extension
+     7.2.  Configuration Distribution
+   8.  Security Considerations
+     8.1.  ClientHello Extension
+     8.2.  Downgrade Prevention
+   9.  IANA Considerations
+   10. References
+     10.1.  Normative References
+     10.2.  Informative References
    Acknowledgments
    Author's Address
 
@@ -994,9 +997,78 @@ Table of Contents
       already be known, meaning they will not be repeated.  Verify that
       the computed value matches the retained value.
 
-6.  Certificate Authority
+6.  Operational Considerations
 
-6.1.  Poison Extension
+6.1.  Client State
+
+   Clients retain the following state:
+
+   *  For each trusted Transparency Log:
+
+      -  The timestamp and Prefix Tree root hash for each log entry
+         whose timestamp is more recent than max_behind.
+
+      -  The full subtrees of the Log Tree ending just before the
+         leftmost retained log entry.
+
+   *  For each provisional inclusion proof observed that has not been
+      replaced with a superseding provisional inclusion proof, or been
+      shown to be included in a properly-sequenced log entry:
+
+      -  The registrable domain or IP address of the host that presented
+         the provisional proof.
+
+      -  The ProvisionalTreeHead structure
+
+      -  The size, first_valid, and invalid_entries fields of the
+         SubtreeInclusionProof structure.
+
+      -  The full subtrees of the Certificate Subtree.
+
+      -  The bearer token and pre-shared key associated with the
+         provisional inclusion proof.
+
+   After a client successfully verifies a proof from Section 5.3, they
+   update their stored state accordingly.  When a client advertises a
+   provisional tree head to the server and the server responds with a
+   standard proof type, the server's response will necessarily include
+   proof that the certificate in the provisional tree head was correctly
+   included in the subsequent log entry.  As such, the information
+   retained about the provisional inclusion proof is deleted.
+   Similarly, when a client advertises a provisional tree head to the
+   server and the server responds with a provisional proof type, the
+   server's response will contain proof that the new provisional
+   inclusion proof supersedes (i.e., contains all the same certificates)
+   as the previous one.  As such, state for the previous provisional
+   inclusion proof is deleted and replaced with state for the new one.
+
+   Clients MUST only update their stored state once a proof has been
+   fully and successfully verified, and once the view of a Transparency
+   Log that's been presented in a proof has been verified to be
+   consistent with the client's stored state.
+
+6.2.  Server Behavior
+
+   To prevent connection failure, it's critical that servers that
+   implement the TLS extension in Section 5 always have a satisfactory
+   proof to offer to clients.  Servers MUST implement the automatic
+   refreshing of proofs, and MUST implement automatic failover between
+   multiple trusted Transparency Logs in the event that one is
+   temporarily unavailable.
+
+   Additionally, servers MUST generate the bearer tokens that are
+   provided to clients in a way that, when the bearer token is
+   advertised back to the server, does not degrade the client's privacy.
+   One suggested way to do this would be to make the bearer token the
+   symmetric encryption of a 12- or 16-byte random value.  This random
+   value would then be used to compute the pre-shared key to give the
+   client.  When the client advertises the bearer token back later, it
+   can be decrypted by the server and used to re-compute the pre-shared
+   key for the connection.
+
+7.  Certificate Authority
+
+7.1.  Poison Extension
 
    A trivial downgrade attack is possible where a host refuses to
    acknowledge the presence of the "transparency_revocation" TLS
@@ -1011,15 +1083,15 @@ Table of Contents
    extension if it is not provided with an appropriate proof of
    inclusion.
 
-6.2.  Configuration Distribution
+7.2.  Configuration Distribution
 
    TODO ACME extension where CA provides information about which
    Transparency Logs will accept a certificate?  To avoid server
    implementation lock-in.
 
-7.  Security Considerations
+8.  Security Considerations
 
-7.1.  ClientHello Extension
+8.1.  ClientHello Extension
 
    Given that ClientHello extensions are sent unencrypted, this portion
    of the extension was designed to avoid unnecessary privacy leaks.  In
@@ -1081,7 +1153,7 @@ Table of Contents
    been contacted before.  Similarly, it is not a goal to prevent a host
    from identifying the same User Agent over many connections.
 
-7.2.  Downgrade Prevention
+8.2.  Downgrade Prevention
 
    The stronger transparency and non-revocation guarantees this protocol
    provides would be irrelevant if a malicious actor could cause the TLS
@@ -1094,7 +1166,7 @@ Table of Contents
 
    Site Operators that have deployed this protocol and wish to prevent
    capable TLS clients from being downgraded can include a poison
-   extension in their TLS certificates, as described in Section 6.1.
+   extension in their TLS certificates, as described in Section 7.1.
    The poison extension will be silently ignored by TLS clients that
    genuinely do not support it, but will cause updated clients to abort
    the protocol in downgrade scenarios.
@@ -1106,7 +1178,7 @@ Table of Contents
    issuance by a Certificate Authority rather than abuse of a
    compromised/revoked certificate.
 
-8.  IANA Considerations
+9.  IANA Considerations
 
    *  Codepoint for TLS extension "transparency_revocation"
 
@@ -1114,9 +1186,9 @@ Table of Contents
 
    *  OID for poison extension
 
-9.  References
+10.  References
 
-9.1.  Normative References
+10.1.  Normative References
 
    [I-D.draft-ietf-keytrans-protocol]
               McMillion, B. and F. Linker, "Key Transparency Protocol",
@@ -1134,7 +1206,7 @@ Table of Contents
               2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
               May 2017, <https://www.rfc-editor.org/rfc/rfc8174>.
 
-9.2.  Informative References
+10.2.  Informative References
 
    [ct-in-wild]
               Li, B., "Certificate Transparency in the Wild: Exploring
