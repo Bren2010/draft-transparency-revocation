@@ -851,6 +851,27 @@ provided by the host. These proofs are verified as follows:
   will not be repeated. Verify that the computed value matches the retained
   value.
 
+As was mentioned in {{structure}}, the entire certificate chain that will be
+presented by the server is stored in the leaf of the Certificate Subtree. If the
+server presents a different certificate chain to the client than was logged in
+the Transparency Log (for example by including or omitting intermediates), the
+client will be unable to compute the correct Certificate Subtree root hash and
+proof verification will fail. Authenticating the entire certificate chain,
+instead of just the leaf, prevents the possibility of unlogged intermediate
+certificates. That is, it prevents the possibility of a leaf certificate being
+logged with a chain to a testing (or otherwise untrusted) trust anchor, and then
+being presented in TLS connections with additional intermediates that connect it
+to a widely-trusted trust anchor.
+
+Similarly, the reference identifier for the leaf certificate (the registrable
+domain or IP address) determines where in the Prefix Tree the Transparency Log
+stores the certificate chain. If the server attempts to present the certificate
+for a different reference identifier, the client will be unable to verify the
+proof. However, the fact that clients enforce that certificates are organized
+into the Transparency Log correctly is the core reason that Site Operators don't
+need to download the entire contents of the Transparency Log to find all
+certificates that are relevant to them.
+
 <!-- TODO Include extra resolutions for provisional proofs from other logs in the
 TransparencyProof structure. -->
 
@@ -860,7 +881,7 @@ TransparencyProof structure. -->
 
 Clients retain the following state:
 
-- For each trusted Transparency Log:
+- For each fork of each trusted Transparency Log:
   - The timestamp and Prefix Tree root hash for each log entry whose timestamp
     is more recent than `max_behind`.
   - The full subtrees of the Log Tree ending just before the leftmost retained
@@ -877,23 +898,28 @@ Clients retain the following state:
   - The bearer token and pre-shared key associated with the provisional
     inclusion proof.
 
-After a client successfully verifies a proof from {{certificate}}, they update
-their stored state accordingly. When a client advertises a provisional tree head
-to the server and the server responds with a standard proof type, the server's
-response will necessarily include proof that the certificate in the provisional
-tree head was correctly included in the subsequent log entry. As such, the
-information retained about the provisional inclusion proof is deleted.
-Similarly, when a client advertises a provisional tree head to the server and
-the server responds with a provisional proof type, the server's response will
-contain proof that the new provisional inclusion proof supersedes (i.e.,
-contains all the same certificates) as the previous one. As such, state for the
-previous provisional inclusion proof is deleted and replaced with state for the
-new one.
-
 Clients MUST only update their stored state once a proof has been fully and
-successfully verified, and once the view of a Transparency Log that's been
-presented in a proof has been verified to be consistent with the client's stored
-state.
+successfully verified. In addition, clients MUST be able to handle being shown
+forked views of a Transparency Log.
+
+When a client advertises a provisional tree head to the server and the server
+responds with a standard proof type, the server's response will necessarily
+include proof that the certificate in the provisional tree head was correctly
+included in the subsequent log entry. As such, the information retained about
+the provisional inclusion proof is deleted. Similarly, when a client advertises
+a provisional tree head to the server and the server responds with a provisional
+proof type, the server's response will contain proof that the new provisional
+inclusion proof supersedes (i.e., contains all the same certificates) the
+previous one. As such, state for the previous provisional inclusion proof is
+deleted and replaced with state for the new one.
+
+Regardless of whether the server responds with a standard or provisional proof
+type, if the server presents a new view of the Log Tree that the client was
+previously unaware of, the client retains this new view for later use. If
+possible, the client stores the new view as an extension of a
+previously-observed view of the Transparency Log. However, if the view is
+inconsistent with what the client has previously observed, it is stored as a new
+independent fork.
 
 ## Server Behavior
 
@@ -906,11 +932,12 @@ event that one is temporarily unavailable.
 Additionally, servers MUST generate the bearer tokens that are provided to
 clients in a way that, when the bearer token is advertised back to the server,
 does not degrade the client's privacy. One suggested way to do this would be to
-make the bearer token the symmetric encryption of a 12- or 16-byte random value.
-This random value would then be used to compute the pre-shared key to give the
-client. When the client advertises the bearer token back later, it can be
-decrypted by the server and used to re-compute the pre-shared key for the
-connection.
+make the bearer token the symmetric encryption of an identifier for the
+associated provisional certificate, along with a 12- or 16-byte random value.
+The random value would then be used to compute the pre-shared key to give the
+client. When the client later advertises the bearer token back, it can be
+decrypted by the server to identify the provisional certificate to respond with
+and to re-compute the pre-shared key for the connection.
 
 # Certificate Authority
 
