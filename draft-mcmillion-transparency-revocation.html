@@ -1057,7 +1057,7 @@ svg :is([fill="white"], [fill^="#fff"]) {
 </tr></thead>
 <tfoot><tr>
 <td class="left">McMillion</td>
-<td class="center">Expires 12 August 2025</td>
+<td class="center">Expires 13 August 2025</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1070,12 +1070,12 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <dd class="internet-draft">draft-mcmillion-transparency-revocation-latest</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2025-02-08" class="published">8 February 2025</time>
+<time datetime="2025-02-09" class="published">9 February 2025</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Informational</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2025-08-12">12 August 2025</time></dd>
+<dd class="expires"><time datetime="2025-08-13">13 August 2025</time></dd>
 <dt class="label-authors">Author:</dt>
 <dd class="authors">
 <div class="author">
@@ -1126,7 +1126,7 @@ of cascading outages.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 12 August 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 13 August 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -2260,6 +2260,25 @@ will not be repeated. Verify that the computed value matches the retained
 value.<a href="#section-5.3-11.4.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
+<p id="section-5.3-12">As was mentioned in <a href="#structure" class="auto internal xref">Section 4.1</a>, the entire certificate chain that will be
+presented by the server is stored in the leaf of the Certificate Subtree. If the
+server presents a different certificate chain to the client than was logged in
+the Transparency Log (for example by including or omitting intermediates), the
+client will be unable to compute the correct Certificate Subtree root hash and
+proof verification will fail. Authenticating the entire certificate chain,
+instead of just the leaf, prevents the possibility of unlogged intermediate
+certificates. That is, it prevents the possibility of a leaf certificate being
+logged with a chain to a testing (or otherwise untrusted) trust anchor, and then
+being presented in TLS connections with additional intermediates that connect it
+to a widely-trusted trust anchor.<a href="#section-5.3-12" class="pilcrow">¶</a></p>
+<p id="section-5.3-13">Similarly, the reference identifier for the leaf certificate (the registrable
+domain or IP address) determines where in the Prefix Tree the Transparency Log
+stores the certificate chain. If the server attempts to present the certificate
+for a different reference identifier, the client will be unable to verify the
+proof. However, the fact that clients enforce that certificates are organized
+into the Transparency Log correctly is the core reason that Site Operators don't
+need to download the entire contents of the Transparency Log to find all
+certificates that are relevant to them.<a href="#section-5.3-13" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
@@ -2277,7 +2296,7 @@ value.<a href="#section-5.3-11.4.1" class="pilcrow">¶</a></p>
 <p id="section-6.1-1">Clients retain the following state:<a href="#section-6.1-1" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="section-6.1-2.1">
-            <p id="section-6.1-2.1.1">For each trusted Transparency Log:<a href="#section-6.1-2.1.1" class="pilcrow">¶</a></p>
+            <p id="section-6.1-2.1.1">For each fork of each trusted Transparency Log:<a href="#section-6.1-2.1.1" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="section-6.1-2.1.2.1">
                 <p id="section-6.1-2.1.2.1.1">The timestamp and Prefix Tree root hash for each log entry whose timestamp
@@ -2315,22 +2334,26 @@ inclusion proof.<a href="#section-6.1-2.2.2.5.1" class="pilcrow">¶</a></p>
             </ul>
 </li>
         </ul>
-<p id="section-6.1-3">After a client successfully verifies a proof from <a href="#certificate" class="auto internal xref">Section 5.3</a>, they update
-their stored state accordingly. When a client advertises a provisional tree head
-to the server and the server responds with a standard proof type, the server's
-response will necessarily include proof that the certificate in the provisional
-tree head was correctly included in the subsequent log entry. As such, the
-information retained about the provisional inclusion proof is deleted.
-Similarly, when a client advertises a provisional tree head to the server and
-the server responds with a provisional proof type, the server's response will
-contain proof that the new provisional inclusion proof supersedes (i.e.,
-contains all the same certificates) as the previous one. As such, state for the
-previous provisional inclusion proof is deleted and replaced with state for the
-new one.<a href="#section-6.1-3" class="pilcrow">¶</a></p>
-<p id="section-6.1-4">Clients <span class="bcp14">MUST</span> only update their stored state once a proof has been fully and
-successfully verified, and once the view of a Transparency Log that's been
-presented in a proof has been verified to be consistent with the client's stored
-state.<a href="#section-6.1-4" class="pilcrow">¶</a></p>
+<p id="section-6.1-3">Clients <span class="bcp14">MUST</span> only update their stored state once a proof has been fully and
+successfully verified. In addition, clients <span class="bcp14">MUST</span> be able to handle being shown
+forked views of a Transparency Log.<a href="#section-6.1-3" class="pilcrow">¶</a></p>
+<p id="section-6.1-4">When a client advertises a provisional tree head to the server and the server
+responds with a standard proof type, the server's response will necessarily
+include proof that the certificate in the provisional tree head was correctly
+included in the subsequent log entry. As such, the information retained about
+the provisional inclusion proof is deleted. Similarly, when a client advertises
+a provisional tree head to the server and the server responds with a provisional
+proof type, the server's response will contain proof that the new provisional
+inclusion proof supersedes (i.e., contains all the same certificates) the
+previous one. As such, state for the previous provisional inclusion proof is
+deleted and replaced with state for the new one.<a href="#section-6.1-4" class="pilcrow">¶</a></p>
+<p id="section-6.1-5">Regardless of whether the server responds with a standard or provisional proof
+type, if the server presents a new view of the Log Tree that the client was
+previously unaware of, the client retains this new view for later use. If
+possible, the client stores the new view as an extension of a
+previously-observed view of the Transparency Log. However, if the view is
+inconsistent with what the client has previously observed, it is stored as a new
+independent fork.<a href="#section-6.1-5" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="server-behavior">
@@ -2346,11 +2369,12 @@ event that one is temporarily unavailable.<a href="#section-6.2-1" class="pilcro
 <p id="section-6.2-2">Additionally, servers <span class="bcp14">MUST</span> generate the bearer tokens that are provided to
 clients in a way that, when the bearer token is advertised back to the server,
 does not degrade the client's privacy. One suggested way to do this would be to
-make the bearer token the symmetric encryption of a 12- or 16-byte random value.
-This random value would then be used to compute the pre-shared key to give the
-client. When the client advertises the bearer token back later, it can be
-decrypted by the server and used to re-compute the pre-shared key for the
-connection.<a href="#section-6.2-2" class="pilcrow">¶</a></p>
+make the bearer token the symmetric encryption of an identifier for the
+associated provisional certificate, along with a 12- or 16-byte random value.
+The random value would then be used to compute the pre-shared key to give the
+client. When the client later advertises the bearer token back, it can be
+decrypted by the server to identify the provisional certificate to respond with
+and to re-compute the pre-shared key for the connection.<a href="#section-6.2-2" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
