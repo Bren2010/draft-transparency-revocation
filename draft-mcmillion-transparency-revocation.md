@@ -933,6 +933,15 @@ clients. Servers MUST implement the automatic refreshing of proofs, and MUST
 implement automatic failover between multiple trusted Transparency Logs in the
 event that one is temporarily unavailable.
 
+Along this same line, it's also possible for a Transparency Log to sequence
+incorrect information and no longer be able to provide acceptable proofs. This
+can happen, for example, if a Transparency Log issues a provisional inclusion
+proof for a certificate and then neglects to include the certificate in the
+subsequent log entry. This is functionally equivalent to a prolonged outage, as
+the server is unable to obtain an acceptable inclusion proof for its
+certificate. As such, servers MUST verify proofs in the same manner as clients
+and attempt to failover to another Transparency Log when verification fails.
+
 Additionally, servers MUST generate the bearer tokens that are provided to
 clients in a way that, when the bearer token is advertised back to the server,
 does not degrade the client's privacy. One suggested way to do this would be to
@@ -943,7 +952,7 @@ client. When the client later advertises the bearer token back, it can be
 decrypted by the server to identify the provisional certificate to respond with
 and to re-compute the pre-shared key for the connection.
 
-## Transparency Log Failure
+## Handling Forks
 
 There are several long-term expectations placed on Transparency Logs that, in
 practice, will almost certainly fail to be upheld. In particular, Transparency
@@ -969,21 +978,18 @@ servers that have inclusion proofs from different forks.
 If a client advertised a non-zero `standard` tree head type and proof
 verification failed only at the final signature verification step (or at direct
 comparison of the root hash, in the case of `SameStandardProof`), this may
-indicate that there is a fork the client is unaware of. The client MAY attempt
-to reconnect to the server while advertising a zero `standard` tree head type.
-This will prompt the server to provide additional intermediate nodes, allowing
-the client to compute the correct Log Tree root hash for signature verification
-to succeed.
+indicate that there is a fork the client is unaware of. The client SHOULD
+attempt to reconnect to the server while advertising a zero `standard` tree head
+type. This will prompt the server to provide additional intermediate nodes,
+allowing the client to compute the correct Log Tree root hash for signature
+verification to succeed.
 
 Excluding the production of forks, the other ways that a Transparency Log can
 fail are much simpler to handle because we know that the client and server agree
-on the state of the log. Other failure scenarios include issuing a provisional
-inclusion proof for a certificate and then failing to include the certificate in
-the subsequent log entry, or marking certain certificates as un-revoked after
-previously revoking them. As such, servers MUST verify proofs in the same manner
-as clients to avoid offering invalid proofs that will cause connection
-establishment to fail. Servers that are unable to obtain an acceptable proof
-from a Transparency Log are expected to failover to another log.
+on the state of the log. These cases are handled by the provisions of
+{{server-behavior}}.
+
+<!-- TODO Consider reporting forks to another Transparency Log -->
 
 
 # Certificate Authority
@@ -1001,10 +1007,10 @@ User Agents that advertise the "transparency_revocation" extension in their
 ClientHello MUST reject a certificate that contains the extension if it is not
 provided with an appropriate proof of inclusion.
 
-## Configuration Distribution
+<!-- ## Configuration Distribution
 
 TODO ACME extension where CA provides information about which Transparency Logs
-will accept a certificate? To avoid server implementation lock-in.
+will accept a certificate? To avoid server implementation lock-in of logs. -->
 
 # Security Considerations
 
