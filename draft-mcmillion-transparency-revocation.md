@@ -882,16 +882,20 @@ TransparencyProof structure. -->
 Clients retain the following state:
 
 - For each fork of each trusted Transparency Log:
-  - The timestamp and Prefix Tree root hash for each log entry whose timestamp
-    is more recent than `max_behind`.
+  - The timestamp and Prefix Tree root hash for any observed recent log entries
+    (**recent log entries** being those with a timestamp that is less than or
+    equal to `max_behind` milliseconds behind the current time).
   - The full subtrees of the Log Tree ending just before the leftmost retained
     log entry.
+  - Any additional intermediate Log Tree nodes that are necessary to compute the
+    most recent Log Tree root hash from the above.
 - For each provisional inclusion proof observed that has not been replaced with
   a superseding provisional inclusion proof, or been shown to be included in a
   properly-sequenced log entry:
   - The registrable domain or IP address of the host that presented the
     provisional proof.
-  - The ProvisionalTreeHead structure
+  - The ProvisionalTreeHead structure.
+  - The full subtrees of the Log Tree, as presented in the provisional proof.
   - The `size`, `first_valid`, and `invalid_entries` fields of the
     `SubtreeInclusionProof` structure.
   - The full subtrees of the Certificate Subtree.
@@ -918,8 +922,8 @@ type, if the server presents a new view of the Log Tree that the client was
 previously unaware of, the client retains this new view for later use. If
 possible, the client stores the new view as an extension of a
 previously-observed view of the Transparency Log. However, if the view is
-inconsistent with what the client has previously observed, it is stored as a new
-independent fork.
+inconsistent with what the client has previously observed then it is stored as a
+new independent fork.
 
 ## Server Behavior
 
@@ -938,6 +942,49 @@ The random value would then be used to compute the pre-shared key to give the
 client. When the client later advertises the bearer token back, it can be
 decrypted by the server to identify the provisional certificate to respond with
 and to re-compute the pre-shared key for the connection.
+
+## Transparency Log Failure
+
+There are several long-term expectations placed on Transparency Logs that, in
+practice, will almost certainly fail to be upheld. In particular, Transparency
+Logs are generally expected to be append-only, such that log entries are never
+removed once they've been added. However, enforcing this strictly is
+incompatible with many of the standard best-practices for operating reliable
+software systems. For example, if this property needed to be enforced strictly,
+it would pointless to back up such a Transparency Log. Restoring from backup
+would imply some degree of rollback and this would be unacceptable. As such, it
+is necessary for the protocol to handle reasonable violations of these
+expectations gracefully, and in a way that preserves overall security.
+
+As discussed in {{client-state}}, clients MUST be able to handle forked views of
+a Transparency Log gracefully. When a client becomes aware of a fork, it MUST
+report the fork to a party distinct from the issuing Certificate Authority and
+the operator of the Transparency Log. Going forward, as long as the client is
+aware of multiple forks that have a rightmost log entry timestamp less than or
+equal to `max_behind` milliseconds in the past, the client MUST NOT advertise in
+its ClientHello a `standard` tree head type with a tree size past where any such
+fork occurs. This minimizes the risk of connection failure when connecting to
+servers that have inclusion proofs from different forks.
+
+If a client advertised a non-zero `standard` tree head type and proof
+verification failed only at the final signature verification step (or at direct
+comparison of the root hash, in the case of `SameStandardProof`), this may
+indicate that there is a fork the client is unaware of. The client MAY attempt
+to reconnect to the server while advertising a zero `standard` tree head type.
+This will prompt the server to provide additional intermediate nodes, allowing
+the client to compute the correct Log Tree root hash for signature verification
+to succeed.
+
+Excluding the production of forks, the other ways that a Transparency Log can
+fail are much simpler to handle because we know that the client and server agree
+on the state of the log. Other failure scenarios include issuing a provisional
+inclusion proof for a certificate and then failing to include the certificate in
+the subsequent log entry, or marking certain certificates as un-revoked after
+previously revoking them. As such, servers MUST verify proofs in the same manner
+as clients to avoid offering invalid proofs that will cause connection
+establishment to fail. Servers that are unable to obtain an acceptable proof
+from a Transparency Log are expected to failover to another log.
+
 
 # Certificate Authority
 
