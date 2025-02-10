@@ -107,7 +107,7 @@ Table of Contents
 
    The Certificate Transparency (CT) ecosystem created by [RFC6962] has
    been immensely valuable to security on the internet.  However,
-   various cracks in the design have become apparent over time:
+   shortcomings in the design have become apparent over time:
 
    The security that CT provides to verifiers is based on an assumption
    of non-collusion between multiple parties.  Historically, this
@@ -673,7 +673,7 @@ Table of Contents
    be advertised once.
 
    If the User Agent was shown a provisional inclusion proof in a
-   previous connection to the host, they will also have received a
+   previous connection to the host, then they will have also received a
    bearer token and a pre-shared key.  In all subsequent connections to
    the host, for as long as the User Agent has not yet seen the
    provisional proof integrated into a subsequent tree head, they
@@ -682,13 +682,32 @@ Table of Contents
    its ServerHello extension, the User Agent will set the PSK input to
    the TLS key schedule to be the pre-shared key.
 
-   If the User Agent does not need to resolve a provisional inclusion
-   proof, they instead advertise a standard TreeHeadType and include the
-   greatest tree size of the Transparency Log in tree_size where the
-   current time (according to the User Agent's local clock) minus the
-   rightmost log entry's timestamp is greater than 8 hours and less than
-   168 hours.  If the User Agent is not aware of such a tree size, the
-   tree_size field is set to 0.
+   User Agents that do not need to resolve a provisional inclusion proof
+   advertise a standard TreeHeadType.  The tree_size field is set as
+   follows:
+
+   *  If the User Agent is aware of two consecutive log entries where
+      the timestamp of the left log entry is greater than max_behind
+      milliseconds in the past and the timestamp of the right log entry
+      is less than or equal to max_behind milliseconds in the past, then
+      the tree_size field is set so as to make the right log entry the
+      rightmost log entry.
+
+   *  If the User Agent isn't aware of two log entries that meet the
+      above criteria, but is aware of a log entry whose timestamp is
+      greater than max_behind milliseconds in the past and less than
+      10*max_behind milliseconds in the past, then the tree_size field
+      is set so as to make the rightmost such log entry the rightmost
+      log entry.
+
+   *  Otherwise, the tree_size field is set to 0.
+
+   With the first criteria, the User Agent is in essence aiming to
+   advertise the oldest tree_size that a server could provide an
+   inclusion proof against without it being expired.  If the User Agent
+   is unable to do this, the second criteria aims to advertise a
+   tree_size that's old enough that it would not be de-anonymizing, but
+   not so old that servers are unaware of it.
 
 5.2.  ServerHello
 
@@ -790,212 +809,214 @@ Table of Contents
    Transparency Log but more recent than the User Agent may be aware of.
    These proofs are verified as follows:
 
-   *  Verify that tree_head.size is greater than the size of the tree
-      head advertised by the client.
+   1.  Verify that tree_head.size is greater than the size of the tree
+       head advertised by the client.
 
-   *  Verify combined as executing the following proofs in this order:
+   2.  Verify combined as executing the following proofs in this order:
 
-      -  Updating the view of the tree (Section 10.3.1 of
-         [I-D.draft-ietf-keytrans-protocol]).  Note that verifying this
-         proof step also verifies that the rightmost log entry's
-         timestamp is within the bounds set by max_ahead and
-         `max_behind.
+       1.  Updating the view of the tree (Section 10.3.1 of
+           [I-D.draft-ietf-keytrans-protocol]).  Note that verifying
+           this proof step also verifies that the rightmost log entry's
+           timestamp is within the bounds set by max_ahead and
+           `max_behind.
 
-      -  If a provisional tree head was advertised by the client and the
-         subsequent log entry is not the rightmost log entry, then the
-         subsequent log entry's timestamp and a PrefixProof from it are
-         added to combined.  (The *subsequent log entry* is defined as
-         the first log entry sequenced after the provisional tree head
-         was created)
+       2.  If a provisional tree head was advertised by the client and
+           the subsequent log entry is not the rightmost log entry, then
+           the subsequent log entry's timestamp and a PrefixProof from
+           it are added to combined.  (The *subsequent log entry* is
+           defined as the first log entry sequenced after the
+           provisional tree head was created)
 
-      -  Finally, a PrefixProof from the rightmost log entry is added to
-         combined.
+       3.  Finally, a PrefixProof from the rightmost log entry is added
+           to combined.
 
-   *  The sequencing field must be present when a provisional tree head
-      was advertised by the client and the subsequent log entry is not
-      the rightmost log entry.  The sequencing field contains the size
-      of the Certificate Subtree and the first_valid and invalid_entries
-      fields of the DomainCertificates structure as it exists in the
-      subsequent log entry.  If present:
+   3.  The sequencing field must be present when a provisional tree head
+       was advertised by the client and the subsequent log entry is not
+       the rightmost log entry.  The sequencing field contains the size
+       of the Certificate Subtree and the first_valid and
+       invalid_entries fields of the DomainCertificates structure as it
+       exists in the subsequent log entry.  If present:
 
-      -  Verify that sequencing.size is greater than or equal to the
-         retained size of the Certificate Subtree.
+       1.  Verify that sequencing.size is greater than or equal to the
+           retained size of the Certificate Subtree.
 
-      -  Verify that sequencing.{first_valid, invalid_entries} would not
-         unrevoke any previously-revoked certificates.
+       2.  Verify that sequencing.{first_valid, invalid_entries} would
+           not unrevoke any previously-revoked certificates.
 
-   *  If the sequencing field is present, compare the following fields
-      in subtree against those in sequencing; if the sequencing field is
-      not present but the client advertised a provisional tree head,
-      compare the fields against the advertised provisional tree head:
+   4.  If the sequencing field is present, compare the following fields
+       in subtree against those in sequencing; if the sequencing field
+       is not present but the client advertised a provisional tree head,
+       compare the fields against the advertised provisional tree head:
 
-      -  Verify that subtree.size is greater than or equal.
+       1.  Verify that subtree.size is greater than or equal.
 
-      -  Verify that subtree.{first_valid, invalid_entries} would not
-         unrevoke any previously-revoked certificates.
+       2.  Verify that subtree.{first_valid, invalid_entries} would not
+           unrevoke any previously-revoked certificates.
 
-   *  Verify that subtree.{first_valid, invalid_entries} do not exclude
-      subtree.position.
+   5.  Verify that subtree.{first_valid, invalid_entries} do not exclude
+       subtree.position.
 
-   *  Compute the root hash of the Log Tree and verify the signature in
-      tree_head.signature:
+   6.  Compute the root hash of the Log Tree and verify the signature in
+       tree_head.signature:
 
-      -  Compute the root hash of the Certificate Subtree as it exists
-         in the rightmost log entry.  If the sequencing field is
-         present, also compute the root hash of the Certificate Subtree
-         as it exists in the subsequent log entry.  Both of these are
-         done by interpreting subtree.inclusion as a proof of inclusion
-         in the Certificate Subtree for subtree.position.  If the
-         sequencing field is present, subtree.inclusion additionally
-         contains the minimum set of node hashes necessary to compute
-         the root of the Certificate Subtree at size sequencing.size.
-         If the client advertised a provisional tree head, the full
-         subtrees of the Certificate Subtree as it existed in the
-         advertised tree head are assumed to be known and will not be
-         repeated.
+       1.  Compute the root hash of the Certificate Subtree as it exists
+           in the rightmost log entry.  If the sequencing field is
+           present, also compute the root hash of the Certificate
+           Subtree as it exists in the subsequent log entry.  Both of
+           these are done by interpreting subtree.inclusion as a proof
+           of inclusion in the Certificate Subtree for subtree.position.
+           If the sequencing field is present, subtree.inclusion
+           additionally contains the minimum set of node hashes
+           necessary to compute the root of the Certificate Subtree at
+           size sequencing.size.  If the client advertised a provisional
+           tree head, the full subtrees of the Certificate Subtree as it
+           existed in the advertised tree head are assumed to be known
+           and will not be repeated.
 
-      -  With the root hash of the Certificate Subtree and the other
-         fields in subtree, compute the Prefix Tree leaf hash for the
-         rightmost log entry.  If the sequencing field is present, use
-         the fields of sequencing to compute the Prefix Tree leaf hash
-         for the subsequent log entry.
+       2.  With the root hash of the Certificate Subtree and the other
+           fields in subtree, compute the Prefix Tree leaf hash for the
+           rightmost log entry.  If the sequencing field is present, use
+           the fields of sequencing to compute the Prefix Tree leaf hash
+           for the subsequent log entry.
 
-      -  With the Prefix Tree leaf hash(es), compute the root hash of
-         the Log Tree with combined.  Note that the full subtrees of the
-         Log Tree advertised by the client are assumed to already be
-         known and will not be repeated.
+       3.  With the Prefix Tree leaf hash(es), compute the root hash of
+           the Log Tree with combined.  Note that the full subtrees of
+           the Log Tree advertised by the client are assumed to already
+           be known and will not be repeated.
 
    When proof_type is set to provisional, this indicates that the
    inclusion proof is against a log entry that is not yet published by
    the Transparency Log. These proofs are verified as follows:
 
-   *  If the client advertised a standard tree head type, verify that
-      tree_head.size is greater than or equal to that of the advertised
-      tree head.  If the client advertised a provisional tree head type,
-      verify that tree_head.size is greater than that of the advertised
-      tree head, or that tree_head.size is equal and tree_head.counter
-      is greater than that of the advertised tree head.
+   1.  If the client advertised a standard tree head type, verify that
+       tree_head.size is greater than or equal to that of the advertised
+       tree head.  If the client advertised a provisional tree head
+       type, verify that tree_head.size is greater than that of the
+       advertised tree head, or that tree_head.size is equal and
+       tree_head.counter is greater than that of the advertised tree
+       head.
 
-   *  Verify combined as executing the following proofs in this order:
+   2.  Verify combined as executing the following proofs in this order:
 
-      -  Updating the view of the tree (Section 10.3.1 of
-         [I-D.draft-ietf-keytrans-protocol]).  Note that verifying this
-         proof step also verifies that the rightmost log entry's
-         timestamp is within the bounds set by max_ahead and
-         `max_behind.
+       1.  Updating the view of the tree (Section 10.3.1 of
+           [I-D.draft-ietf-keytrans-protocol]).  Note that verifying
+           this proof step also verifies that the rightmost log entry's
+           timestamp is within the bounds set by max_ahead and
+           `max_behind.
 
-      -  If a provisional tree head was advertised by the client and the
-         subsequent log entry exists, then the subsequent log entry's
-         timestamp and a PrefixProof from it are added to combined.
+       2.  If a provisional tree head was advertised by the client and
+           the subsequent log entry exists, then the subsequent log
+           entry's timestamp and a PrefixProof from it are added to
+           combined.
 
-   *  The sequencing field must be present when a provisional tree head
-      was advertised by the client and the subsequent log entry exists.
-      The sequencing field contains the size of the Certificate Subtree
-      and the first_valid and invalid_entries fields of the
-      DomainCertificates structure as it exists in the subsequent log
-      entry.  If present:
+   3.  The sequencing field must be present when a provisional tree head
+       was advertised by the client and the subsequent log entry exists.
+       The sequencing field contains the size of the Certificate Subtree
+       and the first_valid and invalid_entries fields of the
+       DomainCertificates structure as it exists in the subsequent log
+       entry.  If present:
 
-      -  Verify that sequencing.size is greater than or equal to the
-         retained size of the Certificate Subtree.
+       1.  Verify that sequencing.size is greater than or equal to the
+           retained size of the Certificate Subtree.
 
-      -  Verify that sequencing.{first_valid, invalid_entries} would not
-         unrevoke any previously-revoked certificates.
+       2.  Verify that sequencing.{first_valid, invalid_entries} would
+           not unrevoke any previously-revoked certificates.
 
-   *  If the sequencing field is present, compare the following fields
-      in subtree against those in sequencing; if the sequencing field is
-      not present but the client advertised a provisional tree head,
-      compare the fields against the advertised provisional tree head:
+   4.  If the sequencing field is present, compare the following fields
+       in subtree against those in sequencing; if the sequencing field
+       is not present but the client advertised a provisional tree head,
+       compare the fields against the advertised provisional tree head:
 
-      -  Verify that subtree.size is greater than or equal.
+       1.  Verify that subtree.size is greater than or equal.
 
-      -  Verify that subtree.{first_valid, invalid_entries} would not
-         unrevoke any previously-revoked certificates.
+       2.  Verify that subtree.{first_valid, invalid_entries} would not
+           unrevoke any previously-revoked certificates.
 
-   *  Verify that subtree.{first_valid, invalid_entries} do not exclude
-      subtree.position.
+   5.  Verify that subtree.{first_valid, invalid_entries} do not exclude
+       subtree.position.
 
-   *  Compute the root hash of the Log Tree and the root hash of the
-      provisional Prefix Tree:
+   6.  Compute the root hash of the Log Tree and the root hash of the
+       provisional Prefix Tree:
 
-      -  Compute the root hash of the Certificate Subtree as it exists
-         in the provisional Prefix Tree.  If the sequencing field is
-         present, also compute the root hash of the Certificate Subtree
-         as it exists in the subsequent log entry.  Both of these are
-         done by interpreting subtree.inclusion as a proof of inclusion
-         in the Certificate Subtree for subtree.position.  If the
-         sequencing field is present, subtree.inclusion additionally
-         contains the minimum set of node hashes necessary to compute
-         the root of the Certificate Subtree at size sequencing.size.
-         If the client advertised a provisional tree head, the full
-         subtrees of the Certificate Subtree as it existed in the
-         advertised tree head are assumed to be known and will not be
-         repeated.
+       1.  Compute the root hash of the Certificate Subtree as it exists
+           in the provisional Prefix Tree.  If the sequencing field is
+           present, also compute the root hash of the Certificate
+           Subtree as it exists in the subsequent log entry.  Both of
+           these are done by interpreting subtree.inclusion as a proof
+           of inclusion in the Certificate Subtree for subtree.position.
+           If the sequencing field is present, subtree.inclusion
+           additionally contains the minimum set of node hashes
+           necessary to compute the root of the Certificate Subtree at
+           size sequencing.size.  If the client advertised a provisional
+           tree head, the full subtrees of the Certificate Subtree as it
+           existed in the advertised tree head are assumed to be known
+           and will not be repeated.
 
-      -  With the root hash of the Certificate Subtree and the other
-         fields in subtree, compute the Prefix Tree leaf hash for the
-         provisional Prefix Tree.  If the sequencing field is present,
-         use the fields of sequencing to compute the Prefix Tree leaf
-         hash for the subsequent log entry.
+       2.  With the root hash of the Certificate Subtree and the other
+           fields in subtree, compute the Prefix Tree leaf hash for the
+           provisional Prefix Tree.  If the sequencing field is present,
+           use the fields of sequencing to compute the Prefix Tree leaf
+           hash for the subsequent log entry.
 
-      -  Compute the root hash of the Log Tree with combined (which may
-         require the Prefix Tree leaf hash for the subsequent log
-         entry).  Note that the full subtrees of the Log Tree advertised
-         by the client are assumed to already be known and will not be
-         repeated.
+       3.  Compute the root hash of the Log Tree with combined (which
+           may require the Prefix Tree leaf hash for the subsequent log
+           entry).  Note that the full subtrees of the Log Tree
+           advertised by the client are assumed to already be known and
+           will not be repeated.
 
-      -  With the provisional Prefix Tree leaf hash and the proof in
-         prefix, compute the provisional Prefix Tree root hash.
+       4.  With the provisional Prefix Tree leaf hash and the proof in
+           prefix, compute the provisional Prefix Tree root hash.
 
-   *  Verify the signature in tree_head.signature.
+   7.  Verify the signature in tree_head.signature.
 
    When proof_type is set to same_standard, this indicates that the
    inclusion proof is against the same tree head that was specified in
    the SupportedTransparencyLog structure for the chosen Transparency
    Log. These proofs are verified as follows:
 
-   *  Verify that the client advertised a standard tree head type for
-      the chosen Transparency Log.
+   1.  Verify that the client advertised a standard tree head type for
+       the chosen Transparency Log.
 
-   *  For the advertised tree head, verify that the rightmost log
-      entry's timestamp is within the bounds set by max_ahead and
-      max_behind.
+   2.  For the advertised tree head, verify that the rightmost log
+       entry's timestamp is within the bounds set by max_ahead and
+       max_behind.
 
-   *  Verify that subtree.{first_valid, invalid_entries} do not revoke
-      subtree.position.
+   3.  Verify that subtree.{first_valid, invalid_entries} do not revoke
+       subtree.position.
 
-   *  Compute the root hash of the Prefix Tree and verify that it
-      matches the retained value:
+   4.  Compute the root hash of the Prefix Tree and verify that it
+       matches the retained value:
 
-      -  Compute the root hash of the Certificate Subtree by
-         interpreting subtree.inclusion as a proof of inclusion in the
-         Certificate Subtree for the log entry at subtree.position.
+       1.  Compute the root hash of the Certificate Subtree by
+           interpreting subtree.inclusion as a proof of inclusion in the
+           Certificate Subtree for the log entry at subtree.position.
 
-      -  With the root hash of the Certificate Subtree and the other
-         fields in subtree, compute the Prefix Tree leaf hash.
+       2.  With the root hash of the Certificate Subtree and the other
+           fields in subtree, compute the Prefix Tree leaf hash.
 
-      -  With the Prefix Tree leaf hash and the proof in prefix, compute
-         the Prefix Tree root hash.
+       3.  With the Prefix Tree leaf hash and the proof in prefix,
+           compute the Prefix Tree root hash.
 
    When proof_type is set to same_provisional, this indicates that the
    inclusion proof is against the same provisional tree head that was
    previously provided by the host.  These proofs are verified as
    follows:
 
-   *  Verify that the client advertised a provisional tree head type for
-      the chosen Transparency Log.
+   1.  Verify that the client advertised a provisional tree head type
+       for the chosen Transparency Log.
 
-   *  For the advertised tree head, verify that the rightmost log
-      entry's timestamp is within the bounds set by max_ahead and
-      max_behind.
+   2.  For the advertised tree head, verify that the rightmost log
+       entry's timestamp is within the bounds set by max_ahead and
+       max_behind.
 
-   *  Verify that the previously-retained first_valid and
-      invalid_entries fields do not revoke position.
+   3.  Verify that the previously-retained first_valid and
+       invalid_entries fields do not revoke position.
 
-   *  Compute the root hash of the Certificate Subtree by interpreting
-      inclusion as a proof of inclusion in the Certificate Subtree for
-      the log entry at position.  The full subtrees are assumed to
-      already be known, meaning they will not be repeated.  Verify that
-      the computed value matches the retained value.
+   4.  Compute the root hash of the Certificate Subtree by interpreting
+       inclusion as a proof of inclusion in the Certificate Subtree for
+       the log entry at position.  The full subtrees are assumed to
+       already be known, meaning they will not be repeated.  Verify that
+       the computed value matches the retained value.
 
    As was mentioned in Section 4.1, the entire certificate chain that
    will be presented by the server is stored in the leaf of the
@@ -1008,8 +1029,8 @@ Table of Contents
    intermediate certificates.  That is, it prevents the possibility of a
    leaf certificate being logged with a chain to a testing (or otherwise
    untrusted) trust anchor, and then being presented in TLS connections
-   with additional intermediates that connect it to a widely-trusted
-   trust anchor.
+   with additional intermediates that connect it to a different trust
+   anchor.
 
    Similarly, the reference identifier for the leaf certificate (the
    registrable domain or IP address) determines where in the Prefix Tree
@@ -1138,11 +1159,11 @@ Table of Contents
    of a fork, it MUST report the fork to a party distinct from the
    issuing Certificate Authority and the operator of the Transparency
    Log. Going forward, as long as the client is aware of multiple forks
-   that have a rightmost log entry timestamp less than or equal to
-   max_behind milliseconds in the past, the client MUST NOT advertise in
-   its ClientHello a standard tree head type with a tree size past where
-   any such fork occurs.  This minimizes the risk of connection failure
-   when connecting to servers that have inclusion proofs from different
+   where the timestamps of the rightmost log entries differ by less than
+   max_behind milliseconds, the client MUST NOT advertise in its
+   ClientHello a standard tree head type with a tree size past where any
+   such fork occurs.  This minimizes the risk of connection failure when
+   connecting to servers that have inclusion proofs from different
    forks.
 
    If a client advertised a non-zero standard tree head type and proof
@@ -1199,10 +1220,9 @@ Table of Contents
    other hosts, it would reveal who they previously communicated with.
 
    To mitigate this, User Agents only advertise tree sizes where the
-   timestamp of the rightmost log entry is at least 8 hours old.  This
-   time delay ensures that the proof of inclusion provided by almost any
-   host could've conveyed the same tree size, creating a large anonymity
-   set.
+   timestamp of the rightmost log entry is sufficiently old.  This time
+   delay ensures that the proof of inclusion provided by almost any host
+   could've conveyed the same tree size, creating a large anonymity set.
 
    When a User Agent observes a provisional proof of inclusion from a
    host, they retain condensed information about it to allow them to
@@ -1222,9 +1242,9 @@ Table of Contents
    token is redeemed (i.e., when the host shows that the provisional
    proof was correctly integrated into the Transparency Log), this
    information is provided in the encrypted Certificate message.  As
-   such, assuming that the bearer token and pre-shared key are generated
-   by the host in a secure way, a passive network observer never sees
-   anything that would identify the certificate shown to the User Agent.
+   such, assuming that the bearer token is generated by the host in a
+   secure way, a passive network observer never sees anything that would
+   identify the certificate shown to the User Agent.
 
    Each bearer token is additionally associated with a pre-shared key
    which is provided to the TLS key schedule.  This prevents an active
