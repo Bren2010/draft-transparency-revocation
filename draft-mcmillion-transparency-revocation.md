@@ -550,7 +550,7 @@ that the User Agent supports.
 
 User Agents include the extension in their ClientHello to communicate which
 Transparency Logs they support and whether or not they have previously observed
-a provisional inclusion proof from the host.
+a provisional inclusion proof from the server.
 
 ~~~ tls
 struct {
@@ -583,13 +583,14 @@ MUST be sorted in ascending order by `transparency_log_id`, and each
 `transparency_log_id` MUST only be advertised once.
 
 If the User Agent was shown a provisional inclusion proof in a previous
-connection to the host, then they will have also received a bearer token and a
-pre-shared key. In all subsequent connections to the host, for as long as the
-User Agent has not yet seen the provisional proof integrated into a subsequent
-tree head, they advertise a `provisional` TreeHeadType and include the
-provided bearer token in `bearer_token`. If the host indicates the Transparency
-Log in its ServerHello extension, the User Agent will set the PSK input to the
-TLS key schedule to be the pre-shared key.
+connection to the server, then they will have also received a bearer token and a
+pre-shared key. For as long as the User Agent has not yet seen the provisional
+proof integrated into the subsequent log entry, and as long as the rightmost log
+entry's timestamp is less than or equal to `10*max_behind` milliseconds in the
+past, the client advertises a `provisional` TreeHeadType and includes the
+provided bearer token in `bearer_token`. If the server indicates the
+Transparency Log in its ServerHello extension, the User Agent will set the PSK
+input to the TLS key schedule to be the pre-shared key.
 
 User Agents that do not need to resolve a provisional inclusion proof advertise
 a `standard` TreeHeadType. The `tree_size` field is set as follows:
@@ -614,19 +615,20 @@ de-anonymizing, but not so old that servers are unaware of it.
 
 ## ServerHello
 
-As was mentioned in the previous section, hosts that receive a TLS 1.3
-connection where the ClientHello has an extension of type
-"transparency_revocation" with a properly formed `extension_data` field have the
-option of providing an inclusion proof for their certificate chain. When the
-inclusion proof builds on top of a previously-shown provisional inclusion proof,
-the PSK input to the TLS key schedule must be set appropriately for the
-connection to succeed.
+Servers that receive a TLS 1.3 ClientHello with an extension of type
+"transparency_revocation", where the `extension_data` field is properly formed,
+have the option of providing an inclusion proof for their certificate chain.
+Servers SHOULD preferentially respond with an inclusion proof from one of the
+Transparency Logs that the client advertised a `provisional` tree head type for,
+provided that an acceptable proof is readily available. When doing so, the
+server needs to signal to the client to set its PSK input to the TLS key
+schedule appropriately by using the following extension:
 
-If the host intends to provide a proof of inclusion (provisional or not) from a
-Transparency Log where the client has advertised a `provisional` TreeHeadType
-in its ClientHello, the host MUST have an extension of type
-"transparency_revocation" in its ServerHello. The `extension_data` is the unique
-identifier of the Transparency Log:
+If the server intends to provide an inclusion proof (provisional or not) from a
+Transparency Log where the client has advertised a `provisional` TreeHeadType,
+the server MUST have an extension of type "transparency_revocation" in its
+ServerHello. The `extension_data` is the unique identifier of the Transparency
+Log:
 
 ~~~ tls
 uint16 transparency_log_id;
@@ -634,7 +636,7 @@ uint16 transparency_log_id;
 
 ## Certificate
 
-The host server provides an inclusion proof for its certificate chain by adding
+The server provides an inclusion proof for its certificate chain by adding
 an extension of type "transparency_revocation" to the first CertificateEntry
 structure in `certificate_list`. The `extension_data` field is a serialized
 TransparencyProof structure:
@@ -851,7 +853,7 @@ proofs are verified as follows:
 
 When `proof_type` is set to `same_provisional`, this indicates that the
 inclusion proof is against the same provisional tree head that was previously
-provided by the host. These proofs are verified as follows:
+provided by the server. These proofs are verified as follows:
 
 1. Verify that the client advertised a provisional tree head type for the chosen
    Transparency Log.
@@ -941,6 +943,42 @@ previously-observed view of the Transparency Log. However, if the view is
 inconsistent with what the client has previously observed then it is stored as a
 new independent fork.
 
+## Extended Resolution Mechanisms
+
+When clients observe a provisional inclusion proof, they retain condensed state
+about the proof until they observe that the associated certificate chain was
+properly included in the subsequent log entry. The primary mechanism by which
+clients are expected to observe this is through future connections to the
+same server. However, this may fail to happen for various reasons. The client
+may not wish to contact the server again within the allotted time, the server
+may go offline, or the server may simply decline to respond with a proof from
+the same Transparency Log. As such, additional mechanisms are needed for the
+client to reach resolution on all provisional inclusion proofs it observes.
+
+Clients SHOULD attempt to contact servers (in the background) from which they've
+observed at least one provisional inclusion proof where the rightmost log entry
+is more than `5*max_behind` milliseconds in the past. The client should
+advertise only `provisional` tree head types where the rightmost log entry has a
+timestamp more than `max_behind` milliseconds in the past. If the connection
+succeeds, any certificate the server responds with will necessarily provide the
+information the client needs to purge a previously-observed provisional
+inclusion proof from its state. Any additional provisional inclusion proof
+provided by the server in such a connection should be disregarded.
+
+If provided, clients may also attempt to contact a third-party service
+(potentially operated by their software vendor) to request proof that a
+subsequent log entry is constructed correctly. Such an endpoint could be
+contacted over Oblivious HTTP {{RFC9458}} to preserve the client's privacy.
+
+<!-- TODO Specify such an endpoint? -->
+
+If a client has been unable to resolve a provisional inclusion proof on its own,
+and the rightmost log entry's timestamp is more than `10*max_behind`
+milliseconds in the past, the client MUST report the provisional inclusion proof
+to a party distinct from the issuing Certificate Authority and the operator of
+the Transparency Log. The client can then delete the associated state at its
+discretion.
+
 ## Server Behavior
 
 To prevent connection failure, it's critical that servers that implement the TLS
@@ -961,12 +999,12 @@ and attempt to failover to another Transparency Log when verification fails.
 Additionally, servers MUST generate the bearer tokens that are provided to
 clients in a way that, when the bearer token is advertised back to the server,
 does not degrade the client's privacy. One suggested way to do this would be to
-make the bearer token the symmetric encryption of an identifier for the
-associated provisional certificate, along with a 12- or 16-byte random value.
-The random value would then be used to compute the pre-shared key to give the
-client. When the client later advertises the bearer token back, it can be
-decrypted by the server to identify the provisional certificate to respond with
-and to re-compute the pre-shared key for the connection.
+make the bearer token a symmetric encryption of an identifier for the associated
+provisional certificate, along with a 12- or 16-byte random value. The random
+value would then be used to compute the pre-shared key to give the client. When
+the client later advertises the bearer token back, it can be decrypted by the
+server to identify the provisional certificate to respond with and to re-compute
+the pre-shared key for the connection.
 
 ## Handling Forks
 
