@@ -481,7 +481,7 @@ endpoint is being accessed is determined by the request's method and path.
 Request and response bodies are specific structures, which are encoded according
 to TLS format and then base64 encoded.
 
-### Get Puzzle
+<!-- ### Get Puzzle
 
 GET /get-puzzle
 
@@ -537,7 +537,7 @@ struct {
 
 
 ### Refreshing an Inclusion Proof
-### Monitoring a Label
+### Monitoring a Label -->
 
 # TLS Extension
 
@@ -971,6 +971,7 @@ subsequent log entry is constructed correctly. Such an endpoint could be
 contacted over Oblivious HTTP {{RFC9458}} to preserve the client's privacy.
 
 <!-- TODO Specify such an endpoint? -->
+<!-- TODO Allow provisional proofs to be resolved by a different Transparency Log? -->
 
 If a client has been unable to resolve a provisional inclusion proof on its own,
 and the rightmost log entry's timestamp is more than `10*max_behind`
