@@ -1,3 +1,4 @@
+
 ---
 title: "Reliable Transparency and Revocation Mechanisms"
 category: info
@@ -122,18 +123,22 @@ The following baseline requirements for the system are as follows:
 1. For a certificate to be mis-issued and not eventually published: two trusted
    parties must collude and all verifiers that observed the certificate must be
    stateless
-2. Violations of the transparency guarantee must have a high potential for
-   after-the-fact detection by stateful verifiers.
-3. It must be reasonably efficient for site operators to audit all trusted
-   Certificate Authorities for mis-issuances affecting their domain names.
-4. The system must not have any single points of failure, other than those in
+2. For a certificate to be accepted after it has been revoked: one trusted party
+   must misbehave.
+3. Regardless of the behavior of trusted parties, any stateful verifier that
+   accepted a certificate that was revoked or not publicly logged must be able
+   to detect this violation after-the-fact.
+4. It must be reasonably efficient for Site Operators to audit all trusted
+   Certificate Authorities for mis-issuances affecting their domain names and IP
+   addresses.
+5. The system must not have any single points of failure, other than those in
    the web PKI as it exists today.
-5. End-users must be able to connect to a server without having immediate
+6. Clients must be able to connect to a server without having immediate
    connectivity to third-party services.
-6. The domain names of websites visited by the end-user must not be leaked,
-   other than how they are in the web PKI as it exists today.
-7. The system must be reasonable for non-browser user agents to deploy.
-8. The system must have a reasonable path to scale indefinitely.
+7. The domain names and/or IP addresses of websites visited by a client must not
+   be leaked, other than how they are in the web PKI as it exists today.
+8. The system must be reasonable for non-browser user agents to deploy.
+9. The system must have a reasonable path to scale indefinitely.
 
 These requirements and their main consequences are discussed in more detail in
 the following subsection.
@@ -143,56 +148,58 @@ the following subsection.
 **Transparency requires stateful verification.** The fundamental goal of any
 transparency system is to ensure that data shown to one participant is equally
 visible to any other participant. This generally involves the use of a
-"transparency log" that publishes data, which may or may not have additional
+"transparency log" that publishes all data, and may or may not have additional
 structure to support efficient searches for specific data. Transparency Logs
 must be verified to be linear, in terms of being append-only, and
 internally-consistent with respect to any rules that the log has about its
-content or structure. Without relying on a third-party to verify these
-properties, which may collude with the Transparency Log, end-users must retain
-state to verify these properties themselves. In addition to ensuring that the
-various views of the log that an end-user has seen are linear and
-internally-consistent, end-users must also *gossip* their view of the log with a
-wide range of other parties. Gossiping allows end-users to detect when they've
-been shown a fork of the log that could potentially contain malicious data
-that other participants in the system are unaware of.
+content or structure. Often in transparency systems, a third party is trusted
+with verifying these properties on behalf of clients. However, this third party
+may collude with the Transparency Log and attest that the Transparency Log is
+operating correctly when it isn't. Requirement 3 is clear that no amount of
+collusion should enable trusted parties to misbehave without their misbehavior
+eventually being detected. Without relying on a trusted party, clients must
+retain state to verify these properties themselves.
 
-Transparency systems based on stateless verification are more accurately termed
-"co-signing" schemes. That's because, with stateless verification, the security
-of any such construction reduces solely to successful verification of the
-co-signers' signatures on a claim. The transparency guarantees of
-co-signing schemes can be undermined by collusion between the co-signers. In the
-web PKI, the co-signers would be a CA and one or more transparency logs. The
-diverse and rapidly changing nature of the web makes collusion between
-participants easy to achieve and difficult to detect. As such, co-signing
-schemes generally unsuitable for use in the web PKI without requiring a
-multitude of co-signers. However, transmitting a multitude of signatures from
-larger, PQ-secure signature schemes can measurably degrade the performance of
-TLS connections. Additionally, co-signing schemes provide no way to detect
-collusion after the fact without resorting to stateful verification.
+Requirement 3 is motivated by a desire to ensure that the system described in
+this document is sustainable in the long-term. Any transparency system that
+relies solely on stateless verification is more accurately referred to as a
+"co-signing" scheme. This is because the security of any such construction
+reduces to successful verification of the co-signers' signatures on a claim, and
+ultimately to an assumption that those co-signers are not colluding. In the web
+PKI, the co-signers would be a Certificate Authority and one or more
+Transparency Logs. The diverse and rapidly changing nature of the web makes
+collusion between participants easy to achieve and difficult to detect. As such,
+co-signing schemes are generally unsuitable for use in the web PKI without
+requiring a multitude of co-signers. However, transmitting a multitude of
+signatures from larger, PQ-secure signature schemes can measurably degrade the
+performance of TLS connections.
 
-**Servers must provide proof directly to end-users that their certificate
+**Servers must provide proof directly to clients that their certificate
 satisfies transparency requirements and isn't revoked.** If proof of
 transparency and non-revocation isn't provided by the server, it must be fetched
 from one or more third-party services. The primary issue with this is that it
 ties the server's global availability to the global availability of these
 third-party services, for which the server operator has no way to preempt or
-resolve deficiencies. As a result of this, proposals for transparency and
-revocation that rely on connectivity to third-party services have historically
-been required to fail open. That is, if the third-party service is inaccessible
-for too long of a period of time, the end-user stops enforcing these security
-properties altogether.
+resolve deficiencies. Proposals for transparency and revocation that rely on
+connectivity to third-party services have historically been required to "fail
+open", meaning that if the third-party service is inaccessible for too long,
+then the client stops enforcing these security properties altogether. Failing
+open is incompatible with requirements 1 and 2 because it introduces the
+possibility that a client might accept an unpublished or revoked certificate
+without explicit misbehavior by a trusted party.
 
 A second issue is that, since we're primarily interested in describing a system
-that works equally well regardless of the end-user's software vendor, these
-third-party services might not be permitted to restrict access to a subset of
-end-users. They would receive regular requests from all internet-connected
-devices, which would present significant scaling and centralization concerns.
+that works equally well regardless of the client's software vendor (requirement
+8), such a service would reasonably be prohibited from restricting access to
+itself. It would receive regular requests from all internet-connected devices,
+creating significant scaling and centralization concerns.
 
 **Servers must refresh their certificates regularly and automatically.** This is
 a direct consequence of the decision that servers must be responsible for
-providing end-users proof that their certificates are not revoked. If a server
-is not required to refresh its certificate, it can attempt to delay the end-user
-from learning about a change of its revocation status.
+providing clients proof that their certificates are not revoked. If a server is
+not required to refresh its certificate, it can arbitrarily delay the client
+from learning about changes in its revocation status. This would be incompatible
+with requirement 2 since servers are not considered trusted parties.
 
 **Revocation must be provided by the transparency system.** A CA can initiate
 revocation either by declining to sign new statements related to a certificate
@@ -208,39 +215,39 @@ possibility of split-view attacks which are not eventually detected. Split-view
 attacks in this context would allow a CA to mis-issue a certificate, claim to
 revoke it, and then maintain the certificate's utility by presenting different
 views of its revocation status to attack victims than to other participants. The
-possibility of such a split-view attack would render revocation fundamentally
-insufficient for correcting mis-issuance, and would create a need for a second
-(more effective) revocation mechanism.
+possibility of such a split-view attack would violate requirement 3, as it would
+not be after-the-fact detectable. More practically though, it would render
+revocation fundamentally insufficient for correcting mis-issuance and would
+create a need for a second (more effective) revocation mechanism.
 
 In the case where CAs initiate revocation by declining to sign new statements,
 this makes the CA a single point-of-failure for websites relying on it. A
 prolonged CA outage would have the effect of revoking all certificates and
-causing a cascading outage. Proposals for revocation that fall into this
-category have historically mitigated this risk by providing slower revocation,
-bounded by the longest conceivable outage that a CA may have (typically at least
-one week).
+causing a cascading outage, violating requirement 5. Proposals for revocation
+that fall into this category have historically mitigated this risk by providing
+very slow revocation, bounded by the longest conceivable outage that a CA may
+have (typically at least one week). However, it's clear that the same potential
+for split-view attacks would still exist, as discussed above.
 
 When specifically considering short-lived certificates as an approach to
-revocation, effectiveness depends on whether or not **all** certificates in the PKI are
-required to be short-lived. If end-users enforce that all certificates are
+revocation, effectiveness depends on whether or not **all** certificates in the
+PKI are required to be short-lived. If clients enforce that all certificates are
 short-lived, and issuance is transparent, then revocation is provided by the
 transparency system as claimed. If certificates may be issued with longer
 lifespans, then a second revocation mechanism for these certificates is
-necessary. Additionally, when considering solutions other than short-lived
-certificates where the CA initiates revocation by declining to sign some
-statement, it's clear that the same potential for split-view attacks exists as
-discussed above.
+necessary.
 
 **Transparency Logs must implement the Key Transparency protocol.** As stated at
 the beginning of this section, the goal of any transparency system is to ensure
 that data shown to one participant is equally visible to any other participant.
-An important aspect of this requirement is that site operators must be able to
-contact a Transparency Log and verifiably receive all of the certificates and
-revocations that are relevant to them.
+In the context of the web PKI, this means that a Site Operator that contacts all
+trusted Transparency Logs should come away with an exhaustive knowledge of all
+certificates that a client might be presented with when connecting to their
+servers.
 
 Most transparency systems require downloading the entirety of the log's contents
 to ensure that all potentially relevant entries are found. This quickly becomes
-prohibitively expensive for all parties. Currently roughly 7.5 million
+prohibitively expensive for all parties, violating requirement 4. Currently roughly 7.5 million
 certificates are issued per day, with an average size of 3 kilobytes. This means
 that a site operator would need to download almost 700 gigabytes of certificates
 to cover a single month of issuance. Outbound bandwidth typically costs between
@@ -249,20 +256,20 @@ site operator would cost the Transparency Log between $6 to $60. For any
 reasonable estimate of the number of site operators on the internet, this
 represents an exceptional burden on a Transparency Log.
 
-In previously deployed systems, because of this exceptional cost, Site Operators
-have elected not to do this work themselves and instead outsourced it to
+In the existing Certificate Transparency ecosystem, because of this exceptional cost, Site Operators
+have elected not to do this work themselves and have instead outsourced it to
 third-party monitors. Third-party monitors represent a problematic break in the
-security guarantees of the system, as there are no enforceable requirements on
+security guarantees of Certificate Transparency, as there are no enforceable requirements on
 their behavior. They are not audited for correct behavior like Certificate
 Authorities are, and there are no technical mechanisms to prevent misbehavior
 like a Transparency Log would have. This has had the real-world impact of
-undermining the claimed transparency guarantees of these systems {{ct-in-wild}}.
+undermining the system's transparency guarantees {{ct-in-wild}}.
 
 Key Transparency {{!I-D.draft-ietf-keytrans-protocol}} augments a Transparency Log
 with additional structure to allow efficient and verifiable searches for
 specific data. This allows Site Operators to download only the entries of the
 Transparency Log that're relevant to them, while still being able to guarantee
-that no certificates have been issued for their domains that they are unaware
+that no certificates have been issued that they are unaware
 of. As a result of the significantly reduced need for outbound bandwidth,
 operating such a Transparency Log would cost around one million times less than
 it would otherwise.
