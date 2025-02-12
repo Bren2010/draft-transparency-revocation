@@ -45,8 +45,8 @@ This document describes reliable mechanisms for the publication and revocation
 of Transport Layer Security (TLS) certificates.  This reliability takes several
 forms. First, it provides browsers a strong guarantee that all certificates they
 accept are truly published and unrevoked at the time they're accepted. Second,
-it allows website operators to monitor for mis-issuances related to their
-domains in a highly efficient way without relying on third-party services.
+it allows operators to monitor for mis-issuances related to their
+websites in a highly efficient way without relying on third-party services.
 Third, it provides a high degree of operational redundancy to minimize the risk
 of cascading outages.
 
@@ -110,7 +110,7 @@ are allowed to assume multiple roles.
 
 **Site Operator:**
 : The individual or organization responsible for the operation and maintenance
-  of a website, as identified by a single domain name.
+  of a website, as identified by a single domain name or IP address.
 
 **User Agent:**
 : A software application, typically but not necessarily a web browser, that acts
@@ -121,58 +121,61 @@ are allowed to assume multiple roles.
 The following baseline requirements for the system are as follows:
 
 1. For a certificate to be mis-issued and not eventually published: two trusted
-   parties must collude and all verifiers that observed the certificate must be
-   stateless
-2. For a certificate to be accepted after it has been revoked: one trusted party
-   must misbehave.
-3. Regardless of the behavior of trusted parties, any stateful verifier that
-   accepted a certificate that was revoked or not publicly logged must be able
-   to detect this violation after-the-fact.
-4. It must be reasonably efficient for Site Operators to audit all trusted
+   parties must collude to misbehave and all verifiers that observed the
+   certificate must be stateless.
+2. For a verifier to accept a revoked certificate and this not be eventually
+   detected: one trusted party must misbehave and all verifiers that accepted
+   the certificate must be stateless.
+3. It must be reasonably efficient for Site Operators to audit all trusted
    Certificate Authorities for mis-issuances affecting their domain names and IP
    addresses.
-5. The system must not have any single points of failure, other than those in
+4. The system must not have any single points of failure, other than those in
    the web PKI as it exists today.
-6. Clients must be able to connect to a server without having immediate
+5. Clients must be able to connect to a server without having immediate
    connectivity to third-party services.
-7. The domain names and/or IP addresses of websites visited by a client must not
+6. The domain names and/or IP addresses of websites visited by a client must not
    be leaked, other than how they are in the web PKI as it exists today.
-8. The system must be reasonable for non-browser user agents to deploy.
-9. The system must have a reasonable path to scale indefinitely.
+7. The system must be reasonable for non-browser user agents to deploy.
+8. The system must have a reasonable path to scale indefinitely.
 
 These requirements and their main consequences are discussed in more detail in
 the following subsection.
 
 ## Discussion
 
-**Transparency requires stateful verification.** The fundamental goal of any
+**Transparency must support stateful verification.** The fundamental goal of any
 transparency system is to ensure that data shown to one participant is equally
-visible to any other participant. This generally involves the use of a
-"transparency log" that publishes all data, and may or may not have additional
-structure to support efficient searches for specific data. Transparency Logs
-must be verified to be linear, in terms of being append-only, and
-internally-consistent with respect to any rules that the log has about its
-content or structure. Often in transparency systems, a third party is trusted
-with verifying these properties on behalf of clients. However, this third party
-may collude with the Transparency Log and attest that the Transparency Log is
-operating correctly when it isn't. Requirement 3 is clear that no amount of
-collusion should enable trusted parties to misbehave without their misbehavior
-eventually being detected. Without relying on a trusted party, clients must
-retain state to verify these properties themselves.
+visible to any other participant. Transparency systems that achieve this by
+relying solely on stateless verification are more accurately referred to as a
+"co-signing" schemes. This is because the security of these systems reduces
+solely to successful verification of the co-signers' signatures on a claim that
+some data is properly published, and ultimately to an assumption that the
+co-signers are not colluding to suppress the data.
 
-Requirement 3 is motivated by a desire to ensure that the system described in
-this document is sustainable in the long-term. Any transparency system that
-relies solely on stateless verification is more accurately referred to as a
-"co-signing" scheme. This is because the security of any such construction
-reduces to successful verification of the co-signers' signatures on a claim, and
-ultimately to an assumption that those co-signers are not colluding. In the web
-PKI, the co-signers would be a Certificate Authority and one or more
-Transparency Logs. The diverse and rapidly changing nature of the web makes
-collusion between participants easy to achieve and difficult to detect. As such,
-co-signing schemes are generally unsuitable for use in the web PKI without
-requiring a multitude of co-signers. However, transmitting a multitude of
-signatures from larger, PQ-secure signature schemes can measurably degrade the
-performance of TLS connections.
+In the web PKI, the co-signers in such a system would be a Certificate Authority
+and one or more Transparency Logs. The diverse and rapidly changing nature of
+the web makes collusion between participants easy to achieve and difficult to
+detect. Without a technical mechanism to detect or prevent collusion, it can be
+covertly achieved and maintained for long periods of time.
+
+The typical solution to this problem is to construct the system such that a
+larger number of co-signers need to collude to succeed in launching an attack.
+However, requiring that a large number of signatures from different co-signers
+be presented in every TLS handshake would easily bloat the handshake to an
+unacceptable degree. This is especially true when the signatures are required to
+come from quantum-secure signature schemes, given that they're much larger than
+their classical alternatives.
+
+While the system described in this document supports stateless verification,
+which is secure as long as there's no collusion between trusted parties, it also
+provides stateful verification. Stateful verification allows verifiers to detect
+violations of the system's core security guarantees, that all certificates they
+accept are published and unrevoked, regardless of any amount of collusion by
+trusted parties. This obviates the need for a large number of co-signers,
+allowing TLS handshakes to remain small. It also offsets the security risk of
+having a small number of co-signers by providing the broader ecosystem,
+including stateless verifiers, with a reliable early warning system for
+misbehavior by trusted parties.
 
 **Servers must provide proof directly to clients that their certificate
 satisfies transparency requirements and isn't revoked.** If proof of
@@ -190,7 +193,7 @@ without explicit misbehavior by a trusted party.
 
 A second issue is that, since we're primarily interested in describing a system
 that works equally well regardless of the client's software vendor (requirement
-8), such a service would reasonably be prohibited from restricting access to
+7), such a service would reasonably be prohibited from restricting access to
 itself. It would receive regular requests from all internet-connected devices,
 creating significant scaling and centralization concerns.
 
@@ -215,7 +218,7 @@ possibility of split-view attacks which are not eventually detected. Split-view
 attacks in this context would allow a CA to mis-issue a certificate, claim to
 revoke it, and then maintain the certificate's utility by presenting different
 views of its revocation status to attack victims than to other participants. The
-possibility of such a split-view attack would violate requirement 3, as it would
+possibility of such a split-view attack would violate requirement 2, as it would
 not be after-the-fact detectable. More practically though, it would render
 revocation fundamentally insufficient for correcting mis-issuance and would
 create a need for a second (more effective) revocation mechanism.
@@ -223,7 +226,7 @@ create a need for a second (more effective) revocation mechanism.
 In the case where CAs initiate revocation by declining to sign new statements,
 this makes the CA a single point-of-failure for websites relying on it. A
 prolonged CA outage would have the effect of revoking all certificates and
-causing a cascading outage, violating requirement 5. Proposals for revocation
+causing a cascading outage, violating requirement 4. Proposals for revocation
 that fall into this category have historically mitigated this risk by providing
 very slow revocation, bounded by the longest conceivable outage that a CA may
 have (typically at least one week). However, it's clear that the same potential
@@ -247,7 +250,7 @@ servers.
 
 Most transparency systems require downloading the entirety of the log's contents
 to ensure that all potentially relevant entries are found. This quickly becomes
-prohibitively expensive for all parties, violating requirement 4. Currently roughly 7.5 million
+prohibitively expensive for all parties, violating requirements 3 and 8. Currently roughly 7.5 million
 certificates are issued per day, with an average size of 3 kilobytes. This means
 that a site operator would need to download almost 700 gigabytes of certificates
 to cover a single month of issuance. Outbound bandwidth typically costs between
@@ -279,24 +282,25 @@ it would otherwise.
 In summary, the system described in this document works as follows:
 
 - Site Operators obtain a certificate from a Certificate Authority and submit it
-  to one of many trusted Transparency Logs to obtain a proof of inclusion.
+  to one of many trusted Transparency Logs to obtain an inclusion proof.
 - User Agents that contact the Site Operator's server over TLS include compact
   transparency-related state in their ClientHello. The server provides its
-  certificate and proof of inclusion (potentially modified based on the agent's
+  certificate and inclusion proof (potentially modified based on the agent's
   advertised state) in the Certificate message. The User Agent verifies that the
-  proof of inclusion aligns with its state, is sufficiently recent, and
+  inclusion proof aligns with its state, is sufficiently recent, and
   indicates the certificate is unrevoked.
-- As time goes on, the current proof of inclusion will become stale. Site
-  Operators refresh their proof of inclusion by requesting a new one from the
+- As time goes on, the current inclusion proof will become stale. Site
+  Operators refresh their inclusion proof by requesting a new one from the
   Transparency Log.
   - If the first Transparency Log is offline, the Site Operator may failover to
     any of several other qualified Transparency Logs.
 - At any time in the background, the Site Operator may query any of the trusted
-  Transparency Logs and verifiably learn about all new certificates issued for
-  their domain. Since the Key Transparency protocol specifies a "correct"
-  location for a domain's certificates to be stored, which User Agents enforce
-  when verifying proofs of inclusion, requesting all certificates related to a
-  domain always remains highly efficient.
+  Transparency Logs and verifiably learn about all new certificates that have
+  been issued affecting their domain names or IP addresses. Since the Key
+  Transparency protocol specifies a "correct" location for a certificate to be
+  stored, and since User Agents enforce this when verifying inclusion proofs,
+  requesting all certificates for a single identifier always remains highly
+  efficient.
 
 The remainder of this document describes these steps in more detail.
 
@@ -305,16 +309,15 @@ The remainder of this document describes these steps in more detail.
 Transparency Logs are online services that maintain a tree data structure and
 provide access to it through the endpoints described below. Transparency Logs
 are generally only contacted by Site Operators. Site Operators regularly issue
-requests to the Transparency Log's endpoints to either obtain fresh proofs of
-inclusion for their certificates, or to monitor for mis-issuances affecting
-their domain names.
+requests to the Transparency Log's endpoints to either obtain fresh inclusion
+proofs for their certificates, or to monitor for mis-issuances affecting their
+properties.
 
 While a Transparency Log may be operated by a Certificate Authority,
 Transparency Logs SHOULD accept certificates issued by a broad set of the
 current widely-trusted Certificate Authorities. This ensures that, if one
 Transparency Log has an outage, there are several other Transparency Logs that
-Site Operators can fallback on for the purpose of fetching a fresh proof of
-inclusion.
+Site Operators can failover to and fetch fresh inclusion proofs from.
 
 ## Structure
 
@@ -415,10 +418,10 @@ Transparency Logs are generally expected to add only a small number of new
 entries to their Log Tree per day. This keeps proof sizes small and also ensures
 that, when User Agents advertise having observed a particular tree head, there
 are a large number of potential hosts that could've conveyed the tree head. To
-support providing proofs of inclusion for new submissions quickly, Transparency
-Logs provide proofs of inclusion against **provisional** heads. A provisional
-head is conceptually a work-in-progress log entry that will, after a bounded
-amount of time, be added to the rightmost edge of the Log Tree.
+support providing inclusion proofs for new submissions quickly, Transparency
+Logs issue **provisional** tree heads. A provisional head is, in essence, a
+work-in-progress log entry that will be added to the rightmost edge of the Log
+Tree within a bounded amount of time.
 
 ~~~ tls
 struct {
@@ -479,7 +482,8 @@ in the `maximum_lifetime` field.
 When the TreeHeadTBS structure is for a `provisional` tree head type,
 `prefix_root` contains the work-in-progress root hash of the Prefix Tree. This
 value may change further before it is added as a new rightmost log entry.
-However, clients will enforce that no certificates are removed or un-revoked.
+However, stateful clients will enforce that none of the certificates they
+observe are removed or un-revoked.
 
 ## Endpoints
 
@@ -1069,7 +1073,7 @@ ASN.1 NULL data (0x05 0x00)) in all certificates they issue.
 
 User Agents that advertise the "transparency_revocation" extension in their
 ClientHello MUST reject a certificate that contains the extension if it is not
-provided with an appropriate proof of inclusion.
+provided with an appropriate inclusion proof.
 
 <!-- ## Configuration Distribution
 
@@ -1087,7 +1091,7 @@ shown in previous connections and what other hosts the User Agent may have
 contacted recently.
 
 User Agents advertise a recently observed tree size for each Transparency Log
-that they support receiving proofs of inclusion from. Since User Agents will
+that they support receiving inclusion proofs from. Since User Agents will
 generally only "observe" various tree sizes of a Transparency Log by
 communicating with hosts that provide proofs from that Transparency Log, and
 since different hosts will update their proofs at different times, this may
@@ -1098,17 +1102,17 @@ hosts, it would reveal who they previously communicated with.
 
 To mitigate this, User Agents only advertise tree sizes where the timestamp of
 the rightmost log entry is sufficiently old. This time delay ensures that
-the proof of inclusion provided by almost any host could've conveyed the same
+the inclusion proof provided by almost any host could've conveyed the same
 tree size, creating a large anonymity set.
 
-When a User Agent observes a provisional proof of inclusion from a host, they
+When a User Agent observes a provisional inclusion proof from a host, they
 retain condensed information about it to allow them to later verify that the
 information it contained was properly integrated into the Transparency Log. The
 primary avenue for obtaining this verification is advertising knowledge of the
 provisional proof back to the host that it came from, hoping to get the
 necessary information in-band.
 
-Since provisional proofs of inclusion must be issued quickly, they don't have
+Since provisional inclusion proofs must be issued quickly, they don't have
 time to build up a large anonymity set with other hosts. Instead of having User
 Agents advertise knowledge of a specific provisional proof in their ClientHello,
 they instead use a bearer token that was provided by the host. This bearer token
@@ -1152,7 +1156,7 @@ silently ignored by TLS clients that genuinely do not support it, but will cause
 updated clients to abort the protocol in downgrade scenarios.
 
 Site Operators can monitor the existing {{RFC6962}} ecosystem to detect
-certificates issued for their domains that lack the poison extension,
+any certificates that have been issued without the poison extension,
 potentially permitting downgrades. However, the creation of such a certificate
 without the Site Operator's consent would imply mis-issuance by a Certificate
 Authority rather than abuse of a compromised/revoked certificate.
