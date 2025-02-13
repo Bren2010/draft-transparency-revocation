@@ -726,7 +726,10 @@ struct {
 
 The `transparency_log_id` field specifies the Transparency Log that the proof
 comes from, while the `proof_type` field specifies the type of proof that
-follows.
+follows. Clients first verify that the Certificate Authority that issued the
+presented certificate chain, and the Transparency Log identified by
+`transparency_log_id`, are operated by different organizations. Verification
+then proceeds as follows, based on `proof_type`:
 
 When `proof_type` is set to `standard`, this indicates that the inclusion proof
 is against a log entry that is currently published by the Transparency Log but
@@ -739,12 +742,12 @@ follows:
    1. Updating the view of the tree (Section 10.3.1 of
       {{!I-D.draft-ietf-keytrans-protocol}}). Note that verifying this proof step
       also verifies that the rightmost log entry's timestamp is within the bounds
-      set by `max_ahead` and `max_behind.
+      set by `max_ahead` and `max_behind`.
    2. If a provisional tree head was advertised by the client and the subsequent
       log entry is not the rightmost log entry, then the subsequent log entry's
       timestamp and a `PrefixProof` from it are added to `combined`. (The
       **subsequent log entry** is defined as the first log entry sequenced after
-      the provisional tree head was created)
+      the provisional tree head was created.)
    3. Finally, a `PrefixProof` from the rightmost log entry is added to
       `combined`.
 3. The `sequencing` field must be present when a provisional tree head was
@@ -776,7 +779,7 @@ follows:
       minimum set of node hashes necessary to compute the root of the Certificate
       Subtree at size `sequencing.size`. If the client advertised a provisional
       tree head, the full subtrees of the Certificate Subtree as it existed in the
-      advertised tree head are assumed to be known and will not be repeated.
+      advertised tree head are assumed to be known and will not be repeated.    <!-- TODO this terminology is not quite right -->
    2. With the root hash of the Certificate Subtree and the other fields in
       `subtree`, compute the Prefix Tree leaf hash for the rightmost log entry. If
       the `sequencing` field is present, use the fields of `sequencing` to compute
@@ -799,7 +802,7 @@ These proofs are verified as follows:
    1. Updating the view of the tree (Section 10.3.1 of
       {{!I-D.draft-ietf-keytrans-protocol}}). Note that verifying this proof step
       also verifies that the rightmost log entry's timestamp is within the bounds
-      set by `max_ahead` and `max_behind.
+      set by `max_ahead` and `max_behind`.
    2. If a provisional tree head was advertised by the client and the subsequent
       log entry exists, then the subsequent log entry's timestamp and a
       `PrefixProof` from it are added to `combined`.
@@ -846,7 +849,7 @@ These proofs are verified as follows:
 7. Verify the signature in `tree_head.signature`.
 
 When `proof_type` is set to `same_standard`, this indicates that the inclusion
-proof is against the same tree head that was specified  in the
+proof is against the same tree head that was specified in the
 `SupportedTransparencyLog` structure for the chosen Transparency Log. These
 proofs are verified as follows:
 
@@ -854,7 +857,7 @@ proofs are verified as follows:
    Transparency Log.
 2. For the advertised tree head, verify that the rightmost log entry's timestamp
    is within the bounds set by `max_ahead` and `max_behind`.
-3. Verify that `subtree.{first_valid, invalid_entries}` do not revoke
+3. Verify that `subtree.{first_valid, invalid_entries}` do not exclude
    `subtree.position`.
 4. Compute the root hash of the Prefix Tree and verify that it matches the
    retained value:
@@ -862,9 +865,9 @@ proofs are verified as follows:
       `subtree.inclusion` as a proof of inclusion in the Certificate Subtree for
       the log entry at `subtree.position`.
    2. With the root hash of the Certificate Subtree and the other fields in
-     `subtree`, compute the Prefix Tree leaf hash.
+      `subtree`, compute the Prefix Tree leaf hash.
    3. With the Prefix Tree leaf hash and the proof in `prefix`, compute the Prefix
-     Tree root hash.
+      Tree root hash.
 
 When `proof_type` is set to `same_provisional`, this indicates that the
 inclusion proof is against the same provisional tree head that was previously
@@ -875,7 +878,7 @@ provided by the server. These proofs are verified as follows:
 2. For the advertised tree head, verify that the rightmost log entry's timestamp
    is within the bounds set by `max_ahead` and `max_behind`.
 3. Verify that the previously-retained `first_valid` and `invalid_entries` fields
-   do not revoke `position`.
+   do not exclude `position`.
 4. Compute the root hash of the Certificate Subtree by interpreting `inclusion`
    as a proof of inclusion in the Certificate Subtree for the log entry at
    `position`. The full subtrees are assumed to already be known, meaning they
@@ -898,15 +901,63 @@ Similarly, the reference identifier for the leaf certificate (the registrable
 domain or IP address) determines where in the Prefix Tree the Transparency Log
 stores the certificate chain. If the server attempts to present the certificate
 for a different reference identifier, the client will be unable to verify the
-proof. However, the fact that clients enforce that certificates are organized
+proof. However, the ability of clients to enforce that certificates are organized
 into the Transparency Log correctly is the core reason that Site Operators don't
 need to download the entire contents of the Transparency Log to find all
 certificates that are relevant to them.
 
-<!-- TODO Include extra resolutions for provisional proofs from other logs in the
-TransparencyProof structure. -->
 
-<!-- TODO Specify that client is the one to account for clock skew -->
+# Extended Resolution Mechanisms
+
+When clients observe a provisional inclusion proof, they retain condensed state
+about the proof until they observe that the associated certificate chain was
+properly included in the subsequent log entry. The primary mechanism by which
+clients are expected to observe this is through future connections to the same
+server. However, this may fail to happen for various reasons. The client may not
+wish to contact the server again within the allotted time, the server may go
+offline, or the server may simply decline to respond with a proof from the same
+Transparency Log. As such, additional mechanisms are described to enable the
+client to reach resolution on all provisional inclusion proofs it observes.
+
+## Background Requests
+
+When a client has an unresolved provisional inclusion proof, where the rightmost
+log entry's timestamp is between `5*max_behind` and `10*max_behind` milliseconds
+in the past, the client SHOULD attempt a single background request to the server
+that provided the proof. A **background request** is a connection attempt that
+is not initiated by a user and will not carry user request data. The client
+should advertise in its ClientHello only `provisional` tree head types where the
+rightmost log entry has a timestamp more than `max_behind` milliseconds in the
+past. If the connection succeeds, any certificate the server responds with will
+necessarily provide the information the client needs to purge a
+previously-observed provisional inclusion proof from its state. Any additional
+provisional inclusion proof provided by the server in such a connection should
+be disregarded, rather than triggering new state to be stored.
+
+## Oblivious Third Party
+
+If provided, clients may also attempt to contact a third-party service
+(potentially operated by their software vendor) to request proof that a
+subsequent log entry is constructed correctly. Such an endpoint could be
+contacted over Oblivious HTTP {{RFC9458}} to preserve the client's privacy.
+
+<!-- TODO Write more -->
+
+## Final Reporting
+
+If a client has been unable to resolve a provisional inclusion proof on its own,
+and the rightmost log entry's timestamp is more than `10*max_behind`
+milliseconds in the past, the client MUST report the provisional inclusion proof
+to a party distinct from the issuing Certificate Authority and the operator of
+the Transparency Log. The client can then delete the associated state at its
+discretion.
+
+The purpose of reporting provisional inclusion proofs that are unable to be
+resolved is to ensure that there is broader ecosystem awareness of a potential
+issue with the Transparency Log. The extent to which there was any malicious
+behavior or operational errors, and any corrective action that should be taken,
+would need to be decided out-of-band.
+
 
 # Operational Considerations
 
@@ -922,7 +973,7 @@ Clients retain the following state:
     log entry.
   - Any additional intermediate Log Tree nodes that are necessary to compute the
     most recent Log Tree root hash from the above.
-  - More timestamps?
+  <!-- - More timestamps? -->
 - For each provisional inclusion proof observed that has not been replaced with
   a superseding provisional inclusion proof, or been shown to be included in a
   properly-sequenced log entry:
@@ -958,43 +1009,6 @@ possible, the client stores the new view as an extension of a
 previously-observed view of the Transparency Log. However, if the view is
 inconsistent with what the client has previously observed then it is stored as a
 new independent fork.
-
-## Extended Resolution Mechanisms
-
-When clients observe a provisional inclusion proof, they retain condensed state
-about the proof until they observe that the associated certificate chain was
-properly included in the subsequent log entry. The primary mechanism by which
-clients are expected to observe this is through future connections to the
-same server. However, this may fail to happen for various reasons. The client
-may not wish to contact the server again within the allotted time, the server
-may go offline, or the server may simply decline to respond with a proof from
-the same Transparency Log. As such, additional mechanisms are needed for the
-client to reach resolution on all provisional inclusion proofs it observes.
-
-Clients SHOULD attempt to contact servers (in the background) from which they've
-observed at least one provisional inclusion proof where the rightmost log entry
-is more than `5*max_behind` milliseconds in the past. The client should
-advertise only `provisional` tree head types where the rightmost log entry has a
-timestamp more than `max_behind` milliseconds in the past. If the connection
-succeeds, any certificate the server responds with will necessarily provide the
-information the client needs to purge a previously-observed provisional
-inclusion proof from its state. Any additional provisional inclusion proof
-provided by the server in such a connection should be disregarded.
-
-If provided, clients may also attempt to contact a third-party service
-(potentially operated by their software vendor) to request proof that a
-subsequent log entry is constructed correctly. Such an endpoint could be
-contacted over Oblivious HTTP {{RFC9458}} to preserve the client's privacy.
-
-<!-- TODO Specify such an endpoint? -->
-<!-- TODO Allow provisional proofs to be resolved by a different Transparency Log? -->
-
-If a client has been unable to resolve a provisional inclusion proof on its own,
-and the rightmost log entry's timestamp is more than `10*max_behind`
-milliseconds in the past, the client MUST report the provisional inclusion proof
-to a party distinct from the issuing Certificate Authority and the operator of
-the Transparency Log. The client can then delete the associated state at its
-discretion.
 
 ## Server Behavior
 
