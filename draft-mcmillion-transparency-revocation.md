@@ -156,7 +156,7 @@ In the web PKI, the co-signers in such a system would be a Certificate Authority
 and one or more Transparency Logs. The diverse and rapidly changing nature of
 the web makes collusion between participants easy to achieve and difficult to
 detect. Without a technical mechanism to detect or prevent collusion, it can be
-covertly achieved and maintained for long periods of time.
+covertly achieved and maintained for very long periods of time.
 
 The typical solution to this problem is to construct the system such that a
 larger number of co-signers need to collude to succeed in launching an attack.
@@ -171,10 +171,9 @@ which is secure as long as there's no collusion between trusted parties, it also
 provides stateful verification. Stateful verification allows verifiers to detect
 violations of the system's core security guarantees, that all certificates they
 accept are published and unrevoked, regardless of any amount of collusion by
-trusted parties. This obviates the need for a large number of co-signers,
-allowing TLS handshakes to remain small. It also offsets the security risk of
-having a small number of co-signers by providing the broader ecosystem,
-including stateless verifiers, with a reliable early warning system for
+trusted parties. This obviates the need for having a large number of co-signers,
+allowing TLS handshakes to remain small and providing the broader ecosystem
+(including stateless verifiers) with a reliable early warning system for
 misbehavior by trusted parties.
 
 **Servers must provide proof directly to clients that their certificate
@@ -966,17 +965,17 @@ would need to be decided out-of-band.
 Clients retain the following state:
 
 - For each fork of each trusted Transparency Log:
-  - The timestamp and Prefix Tree root hash for any observed recent log entries
-    (**recent log entries** being those with a timestamp that is less than or
-    equal to `max_behind` milliseconds behind the current time).
-  - The full subtrees of the Log Tree ending just before the leftmost retained
-    log entry.
-  - Any additional intermediate Log Tree nodes that are necessary to compute the
-    most recent Log Tree root hash from the above.
-  <!-- - More timestamps? -->
+  - The timestamp and Prefix Tree root hash for any observed log entries that
+    may be useful to advertise in the client's ClientHello:
+    - All observed log entries with a timestamp less than or equal to
+      `max_behind` milliseconds in the past.
+    - The rightmost observed log entry with a timestamp more than `max_behind`
+      milliseconds in the past.
+  - Any intermediate Log Tree nodes that are necessary to compute the most
+    recent Log Tree root hash from the retained log entries.
 - For each provisional inclusion proof observed that has not been replaced with
-  a superseding provisional inclusion proof, or been shown to be included in a
-  properly-sequenced log entry:
+  a superseding provisional inclusion proof, or been shown to be included in the
+  subsequent log entry:
   - The registrable domain or IP address of the host that presented the
     provisional proof.
   - The ProvisionalTreeHead structure.
@@ -998,7 +997,7 @@ included in the subsequent log entry. As such, the information retained about
 the provisional inclusion proof is deleted. Similarly, when a client advertises
 a provisional tree head to the server and the server responds with a provisional
 proof type, the server's response will contain proof that the new provisional
-inclusion proof supersedes (i.e., contains all the same certificates) the
+inclusion proof supersedes (i.e., contains all the same certificates as) the
 previous one. As such, state for the previous provisional inclusion proof is
 deleted and replaced with state for the new one.
 
@@ -1007,14 +1006,14 @@ type, if the server presents a new view of the Log Tree that the client was
 previously unaware of, the client retains this new view for later use. If
 possible, the client stores the new view as an extension of a
 previously-observed view of the Transparency Log. However, if the view is
-inconsistent with what the client has previously observed then it is stored as a
-new independent fork.
+inconsistent with what the client has previously observed, then it is stored as
+a new independent fork.
 
 ## Server Behavior
 
 To prevent connection failure, it's critical that servers that implement the TLS
 extension in {{tls-extension}} always have a satisfactory proof to offer to
-clients. Servers MUST implement the automatic refreshing of proofs, and MUST
+clients. Servers MUST implement the automatic refreshing of proofs and MUST
 implement automatic failover between multiple trusted Transparency Logs in the
 event that one is temporarily unavailable.
 
@@ -1025,29 +1024,34 @@ proof for a certificate and then neglects to include the certificate in the
 subsequent log entry. This is functionally equivalent to a prolonged outage, as
 the server is unable to obtain an acceptable inclusion proof for its
 certificate. As such, servers MUST verify proofs in the same manner as clients
-and attempt to failover to another Transparency Log when verification fails.
+and avoid serving proofs that fail verification, failing over to another
+Transparency Log if necessary to get an acceptable proof.
 
-Additionally, servers MUST generate the bearer tokens that are provided to
-clients in a way that, when the bearer token is advertised back to the server,
-does not degrade the client's privacy. One suggested way to do this would be to
-make the bearer token a symmetric encryption of an identifier for the associated
-provisional certificate, along with a 12- or 16-byte random value. The random
+Given the substantial load that may be placed on Transparency Logs, especially
+in scenarios where one log's traffic is failing over to others, servers have a
+responsibility to minimize their individual impact on logs. Servers SHOULD NOT
+attempt to refresh an inclusion proof from a Transparency Log until the
+rightmost log entry's timestamp in the current inclusion proof is more than
+`max_behind*3/4` milliseconds in the past. Servers SHOULD NOT contact a
+Transparency Log about the same inclusion proof more than 3 times within
+`max_behind` milliseconds.
+
+Finally, servers MUST generate the bearer tokens that are provided to clients in
+a way that, when the bearer token is advertised back to the server, does not
+degrade the client's privacy. One suggested way to do this would be to make the
+bearer token a symmetric encryption of an identifier for the associated
+provisional certificate along with a 12- or 16-byte random value. The random
 value would then be used to compute the pre-shared key to give the client. When
 the client later advertises the bearer token back, it can be decrypted by the
 server to identify the provisional certificate to respond with and to re-compute
-the pre-shared key for the connection.
-
-Servers SHOULD NOT attempt to refresh an inclusion proof from a Transparency Log
-until the rightmost log entry's timestamp in the current inclusion proof is more
-than `3/4*max_behind` milliseconds in the past. Servers SHOULD NOT contact the
-same Transparency Log about the same inclusion proof more than 3 times within
-`max_behind` milliseconds.
+the pre-shared key for the connection. This minimizes the operational burden on
+the server and also effectively preserves client privacy.
 
 ## Handling Forks
 
 There are several long-term expectations placed on Transparency Logs that, in
 practice, will almost certainly fail to be upheld. In particular, Transparency
-Logs are generally expected to be append-only, such that log entries are never
+Logs are generally expected to be append-only, meaning that log entries are never
 removed once they've been added. However, enforcing this strictly is
 incompatible with many of the standard best-practices for operating reliable
 software systems. For example, if this property needed to be enforced strictly,
@@ -1068,21 +1072,17 @@ servers that have inclusion proofs from different forks.
 
 If a client advertised a non-zero `standard` tree head type and proof
 verification failed only at the final signature verification step (or at direct
-comparison of the root hash, in the case of `SameStandardProof`), this may
+comparison of the Prefix Tree root hash, in the case of `SameStandardProof`), this may
 indicate that there is a fork the client is unaware of. The client SHOULD
 attempt to reconnect to the server while advertising a zero `standard` tree head
 type. This will prompt the server to provide additional intermediate nodes,
 allowing the client to compute the correct Log Tree root hash for signature
 verification to succeed.
 
-<!-- TODO Clients SHOULD NOT re-attempt proof verification several times on different forks? -->
-
 Excluding the production of forks, the other ways that a Transparency Log can
 fail are much simpler to handle because we know that the client and server agree
 on the state of the log. These cases are handled by the provisions of
 {{server-behavior}}.
-
-<!-- TODO Consider reporting forks to another Transparency Log -->
 
 
 # Certificate Authority
@@ -1096,7 +1096,7 @@ Certificate Authority can mitigate such an attack by including a special
 non-critical poison extension (OID TODO, whose extnValue OCTET STRING contains
 ASN.1 NULL data (0x05 0x00)) in all certificates they issue.
 
-User Agents that advertise the "transparency_revocation" extension in their
+Clients that advertise the "transparency_revocation" extension in their
 ClientHello MUST reject a certificate that contains the extension if it is not
 provided with an appropriate inclusion proof.
 
@@ -1111,26 +1111,26 @@ will accept a certificate? To avoid server implementation lock-in of logs. -->
 
 Given that ClientHello extensions are sent unencrypted, this portion of the
 extension was designed to avoid unnecessary privacy leaks. In particular, care
-was taken to avoid leaking what certificate(s) the User Agent may have been
-shown in previous connections and what other hosts the User Agent may have
+was taken to avoid leaking what certificate(s) the client may have been
+shown in previous connections and what other hosts the client may have
 contacted recently.
 
-User Agents advertise a recently observed tree size for each Transparency Log
-that they support receiving inclusion proofs from. Since User Agents will
+Clients advertise a recently observed tree size for each Transparency Log
+that they support receiving inclusion proofs from. Since clients will
 generally only "observe" various tree sizes of a Transparency Log by
 communicating with hosts that provide proofs from that Transparency Log, and
 since different hosts will update their proofs at different times, this may
-cause a privacy leak. Specifically, it could happen that a User Agent
+cause a privacy leak. Specifically, it could happen that a client
 communicates with a host that uses proofs from a very recently-created tree
-size. If the User Agent advertised this very recently-created tree size to other
+size. If the client advertised this very recently-created tree size to other
 hosts, it would reveal who they previously communicated with.
 
-To mitigate this, User Agents only advertise tree sizes where the timestamp of
+To mitigate this, clients only advertise tree sizes where the timestamp of
 the rightmost log entry is sufficiently old. This time delay ensures that
 the inclusion proof provided by almost any host could've conveyed the same
 tree size, creating a large anonymity set.
 
-When a User Agent observes a provisional inclusion proof from a host, they
+When a client observes a provisional inclusion proof from a host, they
 retain condensed information about it to allow them to later verify that the
 information it contained was properly integrated into the Transparency Log. The
 primary avenue for obtaining this verification is advertising knowledge of the
@@ -1138,8 +1138,8 @@ provisional proof back to the host that it came from, hoping to get the
 necessary information in-band.
 
 Since provisional inclusion proofs must be issued quickly, they don't have
-time to build up a large anonymity set with other hosts. Instead of having User
-Agents advertise knowledge of a specific provisional proof in their ClientHello,
+time to build up a large anonymity set with other hosts. Instead of having clients
+advertise knowledge of a specific provisional proof in their ClientHello,
 they instead use a bearer token that was provided by the host. This bearer token
 is provided in the encrypted Certificate message the first time that the
 provisional proof is used by the host. Similarly, when the bearer token is
@@ -1148,7 +1148,7 @@ integrated into the Transparency Log), this information is provided in the
 encrypted Certificate message. As such, assuming that the bearer token is
 generated by the host in a secure way, a passive network
 observer never sees anything that would identify the certificate shown to the
-User Agent.
+client.
 
 Each bearer token is additionally associated with a pre-shared key which is
 provided to the TLS key schedule. This prevents an active attacker from
@@ -1156,22 +1156,22 @@ establishing a TLS connection to the host, advertising an observed bearer token,
 and learning which certificate is provided.
 
 Finally, note that it is not a goal to prevent an attacker from learning whether
-a User Agent has previously contacted a host *at all* before. The protocol
-explicitly relies on the User Agent's stored state to send as little data over
+a client has previously contacted a host *at all* before. The protocol
+explicitly relies on the client's stored state to send as little data over
 the wire as possible. A passive observer of network traffic could trivially
 determine from the size of the encrypted portion of the handshake messages
 whether such state was present or not, and therefore whether the host had been
 contacted before. Similarly, it is not a goal to prevent a host from identifying
-the same User Agent over many connections.
+the same client over many connections.
 
 ## Downgrade Prevention
 
 The stronger transparency and non-revocation guarantees this protocol provides
 would be irrelevant if a malicious actor could cause the TLS client to disable
 them at-will. An attacker may have, for example, a revoked certificate to which
-they know the private key. This would allow them to fully intercept a User
-Agent's connection to a host and attempt to impersonate the host. In a
-downgraded version of TLS, the User Agent may not enforce revocation at all and
+they know the private key. This would allow them to fully intercept a client's
+connection to a host and attempt to impersonate the host. In a
+downgraded version of TLS, the client may not enforce revocation at all and
 therefore the attacker's interception would succeed.
 
 Site Operators that have deployed this protocol and wish to prevent capable TLS
