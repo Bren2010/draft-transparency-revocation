@@ -201,8 +201,9 @@ creating significant scaling and centralization concerns.
 a direct consequence of the decision that servers must be responsible for
 providing clients proof that their certificates are not revoked. If a server is
 not required to refresh its certificate, it can arbitrarily delay the client
-from learning about changes in its revocation status. This would be incompatible
-with requirement 2 since servers are not considered trusted parties.
+from learning about changes in the certificate's revocation status. This would
+be incompatible with requirement 2, since servers are not considered trusted
+parties and should not be capable of undermining revocation on their own.
 
 **Revocation must be provided by the transparency system.** A CA can initiate
 revocation either by declining to sign new statements related to a certificate
@@ -250,32 +251,33 @@ servers.
 
 Most transparency systems require downloading the entirety of the log's contents
 to ensure that all potentially relevant entries are found. This quickly becomes
-prohibitively expensive for all parties, violating requirements 3 and 8. Currently roughly 7.5 million
-certificates are issued per day, with an average size of 3 kilobytes. This means
-that a site operator would need to download almost 700 gigabytes of certificates
-to cover a single month of issuance. Outbound bandwidth typically costs between
-1 to 9 cents per gigabyte, which means that providing this data to a single
-site operator would cost the Transparency Log between $6 to $60. For any
-reasonable estimate of the number of site operators on the internet, this
-represents an exceptional burden on a Transparency Log.
+prohibitively expensive for all parties, violating requirements 3 and 8.
+Currently roughly 7.5 million certificates are issued per day, with an average
+size of 3 kilobytes. This means that a site operator would need to download
+almost 700 gigabytes of certificates to cover a single month of issuance.
+Outbound bandwidth typically costs between 1 to 9 cents per gigabyte, which
+means that providing this data to a single site operator would cost the
+Transparency Log between $6 to $60. For any reasonable estimate of the number of
+site operators on the internet, this represents an exceptional burden on a
+Transparency Log.
 
-In the existing Certificate Transparency ecosystem, because of this exceptional cost, Site Operators
-have elected not to do this work themselves and have instead outsourced it to
-third-party monitors. Third-party monitors represent a problematic break in the
-security guarantees of Certificate Transparency, as there are no enforceable requirements on
-their behavior. They are not audited for correct behavior like Certificate
-Authorities are, and there are no technical mechanisms to prevent misbehavior
-like a Transparency Log would have. This has had the real-world impact of
-undermining the system's transparency guarantees {{ct-in-wild}}.
+In the existing Certificate Transparency ecosystem, because of this exceptional
+cost, Site Operators have overwhelmingly elected not to do this work themselves
+and have instead outsourced it to third-party monitors. Third-party monitors
+represent a problematic break in the security guarantees of Certificate
+Transparency, as there are no enforceable requirements on their behavior. They
+are not audited for correct behavior like Certificate Authorities are, and there
+are no technical mechanisms to prevent misbehavior like a Transparency Log would
+have. This has had the real-world impact of undermining the system's
+transparency guarantees {{ct-in-wild}}.
 
-Key Transparency {{!I-D.draft-ietf-keytrans-protocol}} augments a Transparency Log
-with additional structure to allow efficient and verifiable searches for
-specific data. This allows Site Operators to download only the entries of the
-Transparency Log that're relevant to them, while still being able to guarantee
-that no certificates have been issued that they are unaware
-of. As a result of the significantly reduced need for outbound bandwidth,
-operating such a Transparency Log would cost around one million times less than
-it would otherwise.
+Key Transparency {{!I-D.draft-ietf-keytrans-protocol}} augments a Transparency
+Log with additional structure to allow efficient and verifiable searches for
+specific data. This allows Site Operators to download only a small subset of the
+entries of the Transparency Log, but still be guaranteed to have received all
+certificates that are relevant to them. As a result of the significantly reduced
+need for outbound bandwidth, operating such a Transparency Log would cost around
+one million times less than it would otherwise.
 
 ## Summary
 
@@ -285,7 +287,7 @@ In summary, the system described in this document works as follows:
   to one of many trusted Transparency Logs to obtain an inclusion proof.
 - User Agents that contact the Site Operator's server over TLS include compact
   transparency-related state in their ClientHello. The server provides its
-  certificate and inclusion proof (potentially modified based on the agent's
+  certificate and inclusion proof (potentially modified based on the client's
   advertised state) in the Certificate message. The User Agent verifies that the
   inclusion proof aligns with its state, is sufficiently recent, and
   indicates the certificate is unrevoked.
@@ -293,7 +295,7 @@ In summary, the system described in this document works as follows:
   Operators refresh their inclusion proof by requesting a new one from the
   Transparency Log.
   - If the first Transparency Log is offline, the Site Operator may failover to
-    any of several other qualified Transparency Logs.
+    any of several other trusted Transparency Logs.
 - At any time in the background, the Site Operator may query any of the trusted
   Transparency Logs and verifiably learn about all new certificates that have
   been issued affecting their domain names or IP addresses. Since the Key
@@ -552,14 +554,14 @@ struct {
 
 # TLS Extension
 
-The following three subsections define the ClientHello, ServerHello, and Certificate
-message portions of a TLS 1.3 extension. This extension allows the host server
-to provide an inclusion proof for its certificate chain from a Transparency Log
-that the User Agent supports.
+The following three subsections define the ClientHello, ServerHello, and
+Certificate message portions of a TLS 1.3 extension. This extension allows the
+host server to provide an inclusion proof for its certificate chain from a
+Transparency Log that the client supports.
 
 ## ClientHello
 
-User Agents include the extension in their ClientHello to communicate which
+Clients include the extension in their ClientHello to communicate which
 Transparency Logs they support and whether or not they have previously observed
 a provisional inclusion proof from the server.
 
@@ -587,40 +589,40 @@ struct {
 The extension has type "transparency_revocation" and consists of a serialized
 `TransparencyRequest` structure in the "extension_data" field.
 
-User Agents include an entry in the `supported` array for each Transparency Log
+Clients include an entry in the `supported` array for each Transparency Log
 that they support receiving inclusion proofs from, containing the Transparency
 Log's assigned unique identifier in `transparency_log_id`. The `supported` array
 MUST be sorted in ascending order by `transparency_log_id`, and each
 `transparency_log_id` MUST only be advertised once.
 
-If the User Agent was shown a provisional inclusion proof in a previous
+If the client was shown a provisional inclusion proof in a previous
 connection to the server, then they will have also received a bearer token and a
-pre-shared key. For as long as the User Agent has not yet seen the provisional
+pre-shared key. For as long as the client has not yet seen the provisional
 proof integrated into the subsequent log entry, and as long as the rightmost log
 entry's timestamp is less than or equal to `10*max_behind` milliseconds in the
-past, the client advertises a `provisional` TreeHeadType and includes the
+past, the client advertises a `provisional` tree head type and includes the
 provided bearer token in `bearer_token`. If the server indicates the
-Transparency Log in its ServerHello extension, the User Agent will set the PSK
+Transparency Log in its ServerHello extension, the client will set the PSK
 input to the TLS key schedule to be the pre-shared key.
 
-User Agents that do not need to resolve a provisional inclusion proof advertise
-a `standard` TreeHeadType. The `tree_size` field is set as follows:
+Clients that do not need to resolve a provisional inclusion proof advertise
+a `standard` tree head type. The `tree_size` field is set as follows:
 
-- If the User Agent is aware of two consecutive log entries where the timestamp
+- If the client is aware of two consecutive log entries where the timestamp
   of the left log entry is greater than `max_behind` milliseconds in the past
   and the timestamp of the right log entry is less than or equal to `max_behind`
   milliseconds in the past, then the `tree_size` field is set so as to make the
   right log entry the rightmost log entry.
-- If the User Agent isn't aware of two log entries that meet the above criteria,
+- If the client isn't aware of two log entries that meet the above criteria,
   but is aware of a log entry whose timestamp is greater than `max_behind`
   milliseconds in the past and less than `10*max_behind` milliseconds in the
   past, then the `tree_size` field is set so as to make the rightmost such log
   entry the rightmost log entry.
 - Otherwise, the `tree_size` field is set to 0.
 
-With the first criteria, the User Agent is in essence aiming to advertise the
+With the first criteria, the client is aiming to advertise the
 oldest `tree_size` that a server could provide an inclusion proof against
-without it being expired. If the User Agent is unable to do this, the second
+without it being expired. If the client is unable to do this, the second
 criteria aims to advertise a `tree_size` that's old enough that it would not be
 de-anonymizing, but not so old that servers are unaware of it.
 
@@ -628,18 +630,20 @@ de-anonymizing, but not so old that servers are unaware of it.
 
 Servers that receive a TLS 1.3 ClientHello with an extension of type
 "transparency_revocation", where the `extension_data` field is properly formed,
-have the option of providing an inclusion proof for their certificate chain.
-Servers SHOULD preferentially respond with an inclusion proof from one of the
-Transparency Logs that the client advertised a `provisional` tree head type for,
-provided that an acceptable proof is readily available. When doing so, the
-server needs to signal to the client to set its PSK input to the TLS key
-schedule appropriately by using the following extension:
+have the option of providing an inclusion proof for their certificate chain. The
+proof provided by the server MUST come from one of the Transparency Logs
+advertised in the client's ClientHello. If the server is not able to provide a
+proof from one of the client's supported Transparency Logs, it MUST respond as
+if the ClientHello extension was not advertised at all. Servers SHOULD
+preferentially respond with an inclusion proof from one of the Transparency Logs
+that the client advertised a `provisional` tree head type for, provided that an
+acceptable proof is readily available.
 
-If the server intends to provide an inclusion proof (provisional or not) from a
-Transparency Log where the client has advertised a `provisional` TreeHeadType,
-the server MUST have an extension of type "transparency_revocation" in its
-ServerHello. The `extension_data` is the unique identifier of the Transparency
-Log:
+If and only if the server intends to provide an inclusion proof (provisional or
+not) from a Transparency Log where the client has advertised a `provisional`
+tree head type, it includes an extension of type "transparency_revocation" in
+its ServerHello. The `extension_data` is the unique identifier of the
+Transparency Log:
 
 ~~~ tls
 uint16 transparency_log_id;
@@ -726,7 +730,7 @@ follows.
 
 When `proof_type` is set to `standard`, this indicates that the inclusion proof
 is against a log entry that is currently published by the Transparency Log but
-more recent than the User Agent may be aware of. These proofs are verified as
+more recent than the client may be aware of. These proofs are verified as
 follows:
 
 1. Verify that `tree_head.size` is greater than the size of the tree head
@@ -918,6 +922,7 @@ Clients retain the following state:
     log entry.
   - Any additional intermediate Log Tree nodes that are necessary to compute the
     most recent Log Tree root hash from the above.
+  - More timestamps?
 - For each provisional inclusion proof observed that has not been replaced with
   a superseding provisional inclusion proof, or been shown to be included in a
   properly-sequenced log entry:
@@ -1017,6 +1022,12 @@ value would then be used to compute the pre-shared key to give the client. When
 the client later advertises the bearer token back, it can be decrypted by the
 server to identify the provisional certificate to respond with and to re-compute
 the pre-shared key for the connection.
+
+Servers SHOULD NOT attempt to refresh an inclusion proof from a Transparency Log
+until the rightmost log entry's timestamp in the current inclusion proof is more
+than `3/4*max_behind` milliseconds in the past. Servers SHOULD NOT contact the
+same Transparency Log about the same inclusion proof more than 3 times within
+`max_behind` milliseconds.
 
 ## Handling Forks
 
