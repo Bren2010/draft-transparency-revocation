@@ -1,4 +1,3 @@
-
 ---
 title: "Reliable Transparency and Revocation Mechanisms"
 category: info
@@ -938,7 +937,7 @@ be disregarded, rather than triggering new state to be stored.
 If provided, clients may also attempt to contact a third-party service
 (potentially operated by their software vendor) to request proof that a
 subsequent log entry is constructed correctly. Such an endpoint could be
-contacted over Oblivious HTTP {{RFC9458}} to preserve the client's privacy.
+contacted over Oblivious HTTP {{?RFC9458}} to preserve the client's privacy.
 
 <!-- TODO Write more -->
 
