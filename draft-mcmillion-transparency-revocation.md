@@ -492,63 +492,84 @@ endpoint is being accessed is determined by the request's method and path.
 Request and response bodies are specific structures, which are encoded according
 to TLS format and then base64 encoded.
 
-<!-- ### Get Puzzle
+### Get Certificates
 
-GET /get-puzzle
-
-There is no request body. The response body is:
+GET /get-certificates?bearer_token=X&start=Y
 
 ~~~ tls
 struct {
-  uint16 difficulty;
-  opaque server_input<0..2^8-1>;
-} Puzzle;
+  SubtreeLogLeaf leaves<0..2^8-1>;
+} GetCertificatesResponse;
 ~~~
 
-Puzzles are used to prevent abuse of the Transparency Log's endpoints. A
-solution to a puzzle is a `PuzzleSolution` structure, with the `solution` field
-populated such that hashing the `PuzzleSolution` structure with the ciphersuite
-hash function results in a value with `difficulty` leading zero bits.
+The request contains a bearer token obtained from the Add Chain endpoint
+({{add-chain}}) in the `bearer_token` query parameter, and the position to start
+at in the Certificate Subtree in the `start` query parameter. The response body
+is GetCertificatesResponse. The `leaves` field contains SubtreeLogLeaf
+structures in the same order that they were sequenced in the Certificate Subtree
+for whichever reference identifier is associated with `bearer_token`, starting
+at position `start`.
+
+The `start` query parameter MUST be greater than or equal to the smallest
+`first_valid` field of any DomainCertificates structure for the associated
+reference identifier that was published in a log entry with a timestamp less
+than `maximum_lifetime` milliseconds in the past.
+
+This endpoint is contacted by Site Operators for the purpose of auditing
+certificates that have been issued for their domain names or IP addresses.
+
+### Submit Revocation
+
+POST /submit-revocation
 
 ~~~ tls
 struct {
-  uint64 solution;
-  opaque server_input<0..2^8-1>;
-} PuzzleSolution;
+  Revocation revocation;
+} SubmitRevocationRequest;
 ~~~
 
-Clients request a puzzle before making a query to any subsequent endpoint and
-provide the `PuzzleSolution` in the request body. Clients SHOULD NOT attempt to
-build a reserve of puzzle solutions, or use a puzzle more than once.
+The request body is SubmitRevocationRequest. There is no response body; the HTTP
+response status code will indicate success or failure of the submission.
 
-### Add Certificate
+This endpoint is intended to be contacted by Site Operators or Certificate
+Authorities for the purpose of distributing revocations for their certificates.
+The Transparency Log applies the revocation by updating any DomainCertificates
+structures to exclude chains that are affected by the revocation. The revocation
+SHOULD be applied to all DomainCertificates structures within `max_behind`
+milliseconds.
 
-POST /add-certificate
+TODO define Revocation type
+
+### Get Revocations
+
+GET /get-revocations?bearer_token=X{&page=Y}
 
 ~~~ tls
 struct {
-  PuzzleSolution solution;
-  Certificate chain<0..2^8-1>;
-} AddCertificateRequest;
+  Revocation revocations<0..2^8-1>;
+  optional<uint32> next;
+} GetRevocationsResponse;
 ~~~
 
-The request body is an `AddCertificateRequest` structure. The first certificate
-in the `chain` field is a leaf certificate, the subsequent certificate is the
-one that issued the leaf certificate, and so on. The final element of the array
-is issued by one of the roots trusted by the Transparency Log.
+The request contains a bearer token obtained from the Add Chain endpoint
+({{add-chain}}) in the `bearer_token` query parameter. Optionally, a page number
+may be provided in the `page` query parameter. The `page` parameter MUST be a
+value observed in the `next` field of a prior GetRevocationsResponse.
 
-~~~ tls
-struct {
-  TreeHead tree_head;
-  CombinedTreeProof search;
-  InclusionProof inclusion;
-} AddCertificateResponse;
-~~~
+The response body is GetRevocationsResponse. The `revocations` field of the
+response contains Revocation structures corresponding one-to-one with the
+`invalid_entries` field of the most recent DomainCertificates structure. Note
+that the most recent DomainCertificates structure may only have been published
+in a provisional tree head at the time of the request. If the last entry of
+`revocations` does not correspond to the last entry of `invalid_entries`, a page
+number in `next` is provided to allow the client to make a follow-up request for
+the next subset of revocations. The Transparency Log MUST set `next` such that,
+if the `invalid_entries` field is modified while a client is requesting a series
+of pages, the client will not miss any revocations that existed as of the first
+request (with no `page` parameter) as a result.
 
-
-
-### Refreshing an Inclusion Proof
-### Monitoring a Label -->
+This endpoint is contacted by Site Operators to audit revocations affecting
+their certificate chains.
 
 # TLS Extension
 
