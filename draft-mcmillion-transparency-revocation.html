@@ -16,14 +16,14 @@ websites in a highly efficient way without relying on third-party services.
 Third, it provides a high degree of operational redundancy to minimize the risk
 of cascading outages. 
     " name="description">
-<meta content="xml2rfc 3.26.0" name="generator">
+<meta content="xml2rfc 3.27.0" name="generator">
 <meta content="next generation" name="keyword">
 <meta content="unicorn" name="keyword">
 <meta content="sparkling distributed ledger" name="keyword">
 <meta content="draft-mcmillion-transparency-revocation-latest" name="ietf.draft">
 <!-- Generator version information:
-  xml2rfc 3.26.0
-    Python 3.12.8
+  xml2rfc 3.27.0
+    Python 3.12.9
     ConfigArgParse 1.7
     google-i18n-address 3.1.1
     intervaltree 3.1.0
@@ -1057,7 +1057,7 @@ svg :is([fill="white"], [fill^="#fff"]) {
 </tr></thead>
 <tfoot><tr>
 <td class="left">McMillion</td>
-<td class="center">Expires 22 August 2025</td>
+<td class="center">Expires 27 August 2025</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1070,12 +1070,12 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <dd class="internet-draft">draft-mcmillion-transparency-revocation-latest</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2025-02-18" class="published">18 February 2025</time>
+<time datetime="2025-02-23" class="published">23 February 2025</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Informational</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2025-08-22">22 August 2025</time></dd>
+<dd class="expires"><time datetime="2025-08-27">27 August 2025</time></dd>
 <dt class="label-authors">Author:</dt>
 <dd class="authors">
 <div class="author">
@@ -1126,7 +1126,7 @@ of cascading outages.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 22 August 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 27 August 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1191,6 +1191,23 @@ of cascading outages.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
 </li>
               <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2">
                 <p id="section-toc.1-1.4.2.2.1"><a href="#section-4.2" class="auto internal xref">4.2</a>.  <a href="#name-endpoints" class="internal xref">Endpoints</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2.2.1">
+                    <p id="section-toc.1-1.4.2.2.2.1.1"><a href="#section-4.2.1" class="auto internal xref">4.2.1</a>.  <a href="#name-get-tree" class="internal xref">Get Tree</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2.2.2">
+                    <p id="section-toc.1-1.4.2.2.2.2.1"><a href="#section-4.2.2" class="auto internal xref">4.2.2</a>.  <a href="#name-add-chain" class="internal xref">Add Chain</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2.2.3">
+                    <p id="section-toc.1-1.4.2.2.2.3.1"><a href="#section-4.2.3" class="auto internal xref">4.2.3</a>.  <a href="#name-get-certificates" class="internal xref">Get Certificates</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2.2.4">
+                    <p id="section-toc.1-1.4.2.2.2.4.1"><a href="#section-4.2.4" class="auto internal xref">4.2.4</a>.  <a href="#name-add-revocation" class="internal xref">Add Revocation</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2.2.5">
+                    <p id="section-toc.1-1.4.2.2.2.5.1"><a href="#section-4.2.5" class="auto internal xref">4.2.5</a>.  <a href="#name-get-revocations" class="internal xref">Get Revocations</a></p>
+</li>
+                </ul>
 </li>
             </ul>
 </li>
@@ -1772,6 +1789,191 @@ observe are removed or un-revoked.<a href="#section-4.1.2-7" class="pilcrow">¶<
 endpoint is being accessed is determined by the request's method and path.
 Request and response bodies are specific structures, which are encoded according
 to TLS format and then base64 encoded.<a href="#section-4.2-1" class="pilcrow">¶</a></p>
+<div id="get-tree">
+<section id="section-4.2.1">
+          <h4 id="name-get-tree">
+<a href="#section-4.2.1" class="section-number selfRef">4.2.1. </a><a href="#name-get-tree" class="section-name selfRef">Get Tree</a>
+          </h4>
+<p id="section-4.2.1-1">This endpoint is accessed by Site Operators to initialize or update their view
+of the tree for the purpose of providing inclusion proofs to clients.<a href="#section-4.2.1-1" class="pilcrow">¶</a></p>
+<p id="section-4.2.1-2">GET /get-tree{?tree_size=X}<a href="#section-4.2.1-2" class="pilcrow">¶</a></p>
+<div class="lang-tls sourcecode" id="section-4.2.1-3">
+<pre>
+struct {
+  TreeHead tree_head;
+  CombinedTreeProof combined;
+} GetTreeResponse;
+</pre><a href="#section-4.2.1-3" class="pilcrow">¶</a>
+</div>
+<p id="section-4.2.1-4">The request optionally contains a <code>tree_size</code> query parameter, containing the
+size of the most recent tree head that has been observed by the client. If
+present, <code>tree_size</code> <span class="bcp14">MUST</span> be the size of a tree head that was published less
+than or equal to <code>max_behind</code> milliseconds in the past.<a href="#section-4.2.1-4" class="pilcrow">¶</a></p>
+<p id="section-4.2.1-5">If the <code>tree_size</code> query parameter was provided but a more recent tree head
+than <code>tree_size</code> has not been issued, the Transparency Log <span class="bcp14">MAY</span> respond with a
+204 No Content status code and an empty response body. Otherwise, the response
+body is GetTreeResponse. The <code>tree_head</code> field contains the most recent tree
+head published by the Transparency Log. The <code>combined</code> field contains the
+following:<a href="#section-4.2.1-5" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-4.2.1-6.1">
+              <p id="section-4.2.1-6.1.1">The output of updating the view of the tree from <code>tree_size</code> (if provided) to
+<code>tree_head.tree_size</code> (Section 10.3.1 of
+<span>[<a href="#I-D.draft-ietf-keytrans-protocol" class="cite xref">I-D.draft-ietf-keytrans-protocol</a>]</span>).<a href="#section-4.2.1-6.1.1" class="pilcrow">¶</a></p>
+</li>
+            <li class="normal" id="section-4.2.1-6.2">
+              <p id="section-4.2.1-6.2.1">The timestamps of all log entries that are more recent than <code>tree_size</code> and
+have timestamps less than or equal to <code>10*max_behind</code>. These timestamps are
+provided in left-to-right order. However, note that some of them may be
+omitted if they are duplicates with the previous bullet, as explained in
+Section 10.3 of <span>[<a href="#I-D.draft-ietf-keytrans-protocol" class="cite xref">I-D.draft-ietf-keytrans-protocol</a>]</span>.<a href="#section-4.2.1-6.2.1" class="pilcrow">¶</a></p>
+</li>
+          </ul>
+<p id="section-4.2.1-7">If <code>tree_size</code> is provided, the proof in <code>combined.inclusion</code> is additionally a
+consistency proof.<a href="#section-4.2.1-7" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="add-chain">
+<section id="section-4.2.2">
+          <h4 id="name-add-chain">
+<a href="#section-4.2.2" class="section-number selfRef">4.2.2. </a><a href="#name-add-chain" class="section-name selfRef">Add Chain</a>
+          </h4>
+<p id="section-4.2.2-1">This endpoint is accessed by Site Operators to produce a proof of inclusion for
+their certificate chain.<a href="#section-4.2.2-1" class="pilcrow">¶</a></p>
+<p id="section-4.2.2-2">POST /add-chain<a href="#section-4.2.2-2" class="pilcrow">¶</a></p>
+<div class="lang-tls sourcecode" id="section-4.2.2-3">
+<pre>
+struct {
+  uint64 tree_size;
+  uint32 subtree_size;
+
+  opaque reference_id&lt;0..2^8-1&gt;;
+  Certificate chain&lt;0..2^8-1&gt;;
+  opaque signature&lt;0..2^16-1&gt;;
+} AddChainRequest;
+
+struct {
+  TreeHeadType tree_head_type;
+  select (AddChainResponse.tree_head_type) {
+    case provisional:
+      ProvisionalTreeHead tree_head;
+      CombinedTreeProof combined;
+      PrefixProof prefix;
+      SubtreeInclusionProof subtree;
+  }
+  BearerToken bearer_token;
+} AddChainResponse;
+</pre><a href="#section-4.2.2-3" class="pilcrow">¶</a>
+</div>
+<p id="section-4.2.2-4">The request body is AddChainRequest. The <code>tree_size</code> field contains the size of
+the most recent tree head observed by the client. The <code>subtree_size</code> field
+contains the greatest size of the Certificate Subtree observed by the client.
+The <code>reference_id</code> field contains the reference identifier that the certificate
+chain will be validated against. The <code>chain</code> field contains the certificate
+chain itself. The <code>signature</code> field contains a signature from the public key in
+the leaf certificate over the following:<a href="#section-4.2.2-4" class="pilcrow">¶</a></p>
+<p id="section-4.2.2-5">TODO Specify signature challenge<a href="#section-4.2.2-5" class="pilcrow">¶</a></p>
+<p id="section-4.2.2-6">The response body is AddChainResponse. If <code>tree_head_type</code> is set to <code>standard</code>,
+this indicates that the exact certificate chain is already present in the
+Certificate Subtree for the reference identifier and published in the rightmost
+log entry. If <code>tree_head_type</code> is set to <code>provisional</code>, this indicates that a
+provisional tree head has been issued for the chain. The provisional tree head
+is given in <code>tree_head</code> and an inclusion proof in the provisional Prefix Tree is
+given in <code>prefix</code>. The <code>combined</code> field contains the same contents as in the Get
+Tree endpoint (<a href="#get-tree" class="auto internal xref">Section 4.2.1</a>). If <code>AddChainRequest.subtree_size</code> is greater than
+zero, then <code>AddChainResponse.subtree.inclusion</code> is additionally a consistency
+proof.<a href="#section-4.2.2-6" class="pilcrow">¶</a></p>
+<p id="section-4.2.2-7">The <code>bearer_token</code> field of an AddChainResponse is arbitrarily set by the
+Transparency Log and used to authenticate requests to the Transparency Log's
+other endpoints. The bearer token will stop working once the associated
+certificate chain has expired (regardless of revocation status).<a href="#section-4.2.2-7" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="get-certificates">
+<section id="section-4.2.3">
+          <h4 id="name-get-certificates">
+<a href="#section-4.2.3" class="section-number selfRef">4.2.3. </a><a href="#name-get-certificates" class="section-name selfRef">Get Certificates</a>
+          </h4>
+<p id="section-4.2.3-1">This endpoint is contacted by Site Operators for the purpose of auditing
+certificates that have been issued for their domain names or IP addresses.<a href="#section-4.2.3-1" class="pilcrow">¶</a></p>
+<p id="section-4.2.3-2">GET /get-certificates?bearer_token=X&amp;start=Y<a href="#section-4.2.3-2" class="pilcrow">¶</a></p>
+<div class="lang-tls sourcecode" id="section-4.2.3-3">
+<pre>
+struct {
+  SubtreeLogLeaf leaves&lt;0..2^8-1&gt;;
+} GetCertificatesResponse;
+</pre><a href="#section-4.2.3-3" class="pilcrow">¶</a>
+</div>
+<p id="section-4.2.3-4">The request contains a bearer token obtained from the Add Chain endpoint
+(<a href="#add-chain" class="auto internal xref">Section 4.2.2</a>) in the <code>bearer_token</code> query parameter, and the position to start
+at in the Certificate Subtree in the <code>start</code> query parameter. The response body
+is GetCertificatesResponse. The <code>leaves</code> field contains SubtreeLogLeaf
+structures in the same order that they were sequenced in the Certificate Subtree
+for whichever reference identifier is associated with <code>bearer_token</code>, starting
+at position <code>start</code>.<a href="#section-4.2.3-4" class="pilcrow">¶</a></p>
+<p id="section-4.2.3-5">The <code>start</code> query parameter <span class="bcp14">MUST</span> be greater than or equal to the smallest
+<code>first_valid</code> field of any DomainCertificates structure for the associated
+reference identifier that was published in a log entry with a timestamp less
+than <code>maximum_lifetime</code> milliseconds in the past.<a href="#section-4.2.3-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="add-revocation">
+<section id="section-4.2.4">
+          <h4 id="name-add-revocation">
+<a href="#section-4.2.4" class="section-number selfRef">4.2.4. </a><a href="#name-add-revocation" class="section-name selfRef">Add Revocation</a>
+          </h4>
+<p id="section-4.2.4-1">This endpoint is contacted by Site Operators or Certificate Authorities for the
+purpose of distributing revocations for their certificates.<a href="#section-4.2.4-1" class="pilcrow">¶</a></p>
+<p id="section-4.2.4-2">POST /add-revocation<a href="#section-4.2.4-2" class="pilcrow">¶</a></p>
+<div class="lang-tls sourcecode" id="section-4.2.4-3">
+<pre>
+struct {
+  Revocation revocation;
+} AddRevocationRequest;
+</pre><a href="#section-4.2.4-3" class="pilcrow">¶</a>
+</div>
+<p id="section-4.2.4-4">The request body is AddRevocationRequest. There is no response body; the HTTP
+response status code will indicate success or failure of the submission. The
+Transparency Log applies the revocation by updating any DomainCertificates
+structures to exclude chains that are affected by the revocation. The revocation
+<span class="bcp14">SHOULD</span> be applied to all DomainCertificates structures within <code>max_behind</code>
+milliseconds.<a href="#section-4.2.4-4" class="pilcrow">¶</a></p>
+<p id="section-4.2.4-5">TODO define Revocation type<a href="#section-4.2.4-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="get-revocations">
+<section id="section-4.2.5">
+          <h4 id="name-get-revocations">
+<a href="#section-4.2.5" class="section-number selfRef">4.2.5. </a><a href="#name-get-revocations" class="section-name selfRef">Get Revocations</a>
+          </h4>
+<p id="section-4.2.5-1">This endpoint is contacted by Site Operators to audit revocations affecting
+their certificate chains.<a href="#section-4.2.5-1" class="pilcrow">¶</a></p>
+<p id="section-4.2.5-2">GET /get-revocations?bearer_token=X{&amp;page=Y}<a href="#section-4.2.5-2" class="pilcrow">¶</a></p>
+<div class="lang-tls sourcecode" id="section-4.2.5-3">
+<pre>
+struct {
+  Revocation revocations&lt;0..2^8-1&gt;;
+  optional&lt;uint32&gt; next;
+} GetRevocationsResponse;
+</pre><a href="#section-4.2.5-3" class="pilcrow">¶</a>
+</div>
+<p id="section-4.2.5-4">The request contains a bearer token obtained from the Add Chain endpoint
+(<a href="#add-chain" class="auto internal xref">Section 4.2.2</a>) in the <code>bearer_token</code> query parameter. Optionally, a page number
+may be provided in the <code>page</code> query parameter. The <code>page</code> parameter <span class="bcp14">MUST</span> be a
+value observed in the <code>next</code> field of a prior GetRevocationsResponse.<a href="#section-4.2.5-4" class="pilcrow">¶</a></p>
+<p id="section-4.2.5-5">The response body is GetRevocationsResponse. The <code>revocations</code> field of the
+response contains Revocation structures corresponding one-to-one with the
+<code>invalid_entries</code> field of the most recent DomainCertificates structure. Note
+that the most recent DomainCertificates structure may only have been published
+in a provisional tree head at the time of the request. If the last entry of
+<code>revocations</code> does not correspond to the last entry of <code>invalid_entries</code>, a page
+number in <code>next</code> is provided to allow the client to make a follow-up request for
+the next subset of revocations. The Transparency Log <span class="bcp14">MUST</span> set <code>next</code> such that,
+if the <code>invalid_entries</code> field is modified while a client is requesting a series
+of pages, the client will not miss any revocations that existed as of the first
+request (with no <code>page</code> parameter) as a result.<a href="#section-4.2.5-5" class="pilcrow">¶</a></p>
+</section>
+</div>
 </section>
 </div>
 </section>
