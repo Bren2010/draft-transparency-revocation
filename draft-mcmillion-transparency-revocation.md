@@ -492,7 +492,104 @@ endpoint is being accessed is determined by the request's method and path.
 Request and response bodies are specific structures, which are encoded according
 to TLS format and then base64 encoded.
 
+### Get Tree
+
+This endpoint is accessed by Site Operators to initialize or update their view
+of the tree for the purpose of providing inclusion proofs to clients.
+
+GET /get-tree{?tree_size=X}
+
+~~~ tls
+struct {
+  TreeHead tree_head;
+  CombinedTreeProof combined;
+} GetTreeResponse;
+~~~
+
+The request optionally contains a `tree_size` query parameter, containing the
+size of the most recent tree head that has been observed by the client. If
+present, `tree_size` MUST be the size of a tree head that was published less
+than or equal to `max_behind` milliseconds in the past.
+
+If the `tree_size` query parameter was provided but a more recent tree head
+than `tree_size` has not been issued, the Transparency Log MAY respond with a
+204 No Content status code and an empty response body. Otherwise, the response
+body is GetTreeResponse. The `tree_head` field contains the most recent tree
+head published by the Transparency Log. The `combined` field contains the
+following:
+
+- The output of updating the view of the tree from `tree_size` (if provided) to
+  `tree_head.tree_size` (Section 10.3.1 of
+  {{!I-D.draft-ietf-keytrans-protocol}}).
+- The timestamps of all log entries that are more recent than `tree_size` and
+  have timestamps less than or equal to `10*max_behind`. These timestamps are
+  provided in left-to-right order. However, note that some of them may be
+  omitted if they are duplicates with the previous bullet, as explained in
+  Section 10.3 of {{!I-D.draft-ietf-keytrans-protocol}}.
+
+If `tree_size` is provided, the proof in `combined.inclusion` is additionally a
+consistency proof.
+
+### Add Chain
+
+This endpoint is accessed by Site Operators to produce a proof of inclusion for
+their certificate chain.
+
+POST /add-chain
+
+~~~ tls
+struct {
+  uint64 tree_size;
+  uint32 subtree_size;
+
+  opaque reference_id<0..2^8-1>;
+  Certificate chain<0..2^8-1>;
+  opaque signature<0..2^16-1>;
+} AddChainRequest;
+
+struct {
+  TreeHeadType tree_head_type;
+  select (AddChainResponse.tree_head_type) {
+    case provisional:
+      ProvisionalTreeHead tree_head;
+      CombinedTreeProof combined;
+      PrefixProof prefix;
+      SubtreeInclusionProof subtree;
+  }
+  BearerToken bearer_token;
+} AddChainResponse;
+~~~
+
+The request body is AddChainRequest. The `tree_size` field contains the size of
+the most recent tree head observed by the client. The `subtree_size` field
+contains the greatest size of the Certificate Subtree observed by the client.
+The `reference_id` field contains the reference identifier that the certificate
+chain will be validated against. The `chain` field contains the certificate
+chain itself. The `signature` field contains a signature from the public key in
+the leaf certificate over the following:
+
+TODO Specify signature challenge
+
+The response body is AddChainResponse. If `tree_head_type` is set to `standard`,
+this indicates that the exact certificate chain is already present in the
+Certificate Subtree for the reference identifier and published in the rightmost
+log entry. If `tree_head_type` is set to `provisional`, this indicates that a
+provisional tree head has been issued for the chain. The provisional tree head
+is given in `tree_head` and an inclusion proof in the provisional Prefix Tree is
+given in `prefix`. The `combined` field contains the same contents as in the Get
+Tree endpoint ({{get-tree}}). If `AddChainRequest.subtree_size` is greater than
+zero, then `AddChainResponse.subtree.inclusion` is additionally a consistency
+proof.
+
+The `bearer_token` field of an AddChainResponse is arbitrarily set by the
+Transparency Log and used to authenticate requests to the Transparency Log's
+other endpoints. The bearer token will stop working once the associated
+certificate chain has expired (regardless of revocation status).
+
 ### Get Certificates
+
+This endpoint is contacted by Site Operators for the purpose of auditing
+certificates that have been issued for their domain names or IP addresses.
 
 GET /get-certificates?bearer_token=X&start=Y
 
@@ -515,25 +612,22 @@ The `start` query parameter MUST be greater than or equal to the smallest
 reference identifier that was published in a log entry with a timestamp less
 than `maximum_lifetime` milliseconds in the past.
 
-This endpoint is contacted by Site Operators for the purpose of auditing
-certificates that have been issued for their domain names or IP addresses.
+### Add Revocation
 
-### Submit Revocation
+This endpoint is contacted by Site Operators or Certificate Authorities for the
+purpose of distributing revocations for their certificates.
 
-POST /submit-revocation
+POST /add-revocation
 
 ~~~ tls
 struct {
   Revocation revocation;
-} SubmitRevocationRequest;
+} AddRevocationRequest;
 ~~~
 
-The request body is SubmitRevocationRequest. There is no response body; the HTTP
-response status code will indicate success or failure of the submission.
-
-This endpoint is intended to be contacted by Site Operators or Certificate
-Authorities for the purpose of distributing revocations for their certificates.
-The Transparency Log applies the revocation by updating any DomainCertificates
+The request body is AddRevocationRequest. There is no response body; the HTTP
+response status code will indicate success or failure of the submission. The
+Transparency Log applies the revocation by updating any DomainCertificates
 structures to exclude chains that are affected by the revocation. The revocation
 SHOULD be applied to all DomainCertificates structures within `max_behind`
 milliseconds.
@@ -541,6 +635,9 @@ milliseconds.
 TODO define Revocation type
 
 ### Get Revocations
+
+This endpoint is contacted by Site Operators to audit revocations affecting
+their certificate chains.
 
 GET /get-revocations?bearer_token=X{&page=Y}
 
@@ -567,9 +664,6 @@ the next subset of revocations. The Transparency Log MUST set `next` such that,
 if the `invalid_entries` field is modified while a client is requesting a series
 of pages, the client will not miss any revocations that existed as of the first
 request (with no `page` parameter) as a result.
-
-This endpoint is contacted by Site Operators to audit revocations affecting
-their certificate chains.
 
 # TLS Extension
 
