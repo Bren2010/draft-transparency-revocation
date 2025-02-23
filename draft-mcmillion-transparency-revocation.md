@@ -550,6 +550,8 @@ struct {
 struct {
   TreeHeadType tree_head_type;
   select (AddChainResponse.tree_head_type) {
+    case standard:
+      uint32 subtree_position;
     case provisional:
       ProvisionalTreeHead tree_head;
       CombinedTreeProof combined;
@@ -573,18 +575,48 @@ TODO Specify signature challenge
 The response body is AddChainResponse. If `tree_head_type` is set to `standard`,
 this indicates that the exact certificate chain is already present in the
 Certificate Subtree for the reference identifier and published in the rightmost
-log entry. If `tree_head_type` is set to `provisional`, this indicates that a
-provisional tree head has been issued for the chain. The provisional tree head
-is given in `tree_head` and an inclusion proof in the provisional Prefix Tree is
-given in `prefix`. The `combined` field contains the same contents as in the Get
-Tree endpoint ({{get-tree}}). If `AddChainRequest.subtree_size` is greater than
-zero, then `AddChainResponse.subtree.inclusion` is additionally a consistency
-proof.
+log entry. The `subtree_position` field contains the position of the certificate
+chain in the Certificate Subtree.
+
+If `tree_head_type` is set to `provisional`, this indicates that a provisional
+tree head has been issued for the chain. The provisional tree head is given in
+`tree_head` and an inclusion proof in the provisional Prefix Tree is given in
+`prefix`. The `combined` field contains the same contents as in the Get Tree
+endpoint ({{get-tree}}). If `AddChainRequest.subtree_size` is greater than zero,
+then `AddChainResponse.subtree.inclusion` is additionally a consistency proof.
 
 The `bearer_token` field of an AddChainResponse is arbitrarily set by the
 Transparency Log and used to authenticate requests to the Transparency Log's
 other endpoints. The bearer token will stop working once the associated
 certificate chain has expired (regardless of revocation status).
+
+### Refresh Proof
+
+This endpoint is accessed by Site Operators to refresh a proof of inclusion for
+their certificate chain, making it acceptable to clients for a longer period of
+time.
+
+GET /refresh-proof?bearer_token=X&position=Y
+
+~~~ tls
+struct {
+  PrefixProof prefix;
+  SubtreeInclusionProof subtree;
+} RefreshProofResponse;
+~~~
+
+The request contains a bearer token obtained from the Add Chain endpoint
+({{add-chain}}) in the `bearer_token` query parameter, and the position of a log
+entry in the `position` query parameter. The `position` query parameter MUST
+either be the subsequent log entry issued after the provisional tree head (if
+any) associated with `bearer_token`, or be a log entry issued less than or equal
+to `max_behind` milliseconds in the past.
+
+The response body is RefreshProofResponse. The `prefix` field contains a proof
+of inclusion in the Prefix Tree stored at the requested log entry, specifically
+for the reference identifier associated with `bearer_token`. The `subtree` field
+contains an inclusion proof in the Certificate Subtree for the certificate chain
+associated with `bearer_token`, as it existed in the requested log entry.
 
 ### Get Certificates
 
