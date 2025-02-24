@@ -306,6 +306,8 @@ The remainder of this document describes these steps in more detail.
 
 # Transparency Log
 
+<!-- TODO Define new PrefixProof, InclusionProof types with less overhead -->
+
 Transparency Logs are online services that maintain a tree data structure and
 provide access to it through the endpoints described below. Transparency Logs
 are generally only contacted by Site Operators. Site Operators regularly issue
@@ -550,8 +552,6 @@ struct {
 struct {
   TreeHeadType tree_head_type;
   select (AddChainResponse.tree_head_type) {
-    case standard:
-      uint32 subtree_position;
     case provisional:
       ProvisionalTreeHead tree_head;
       CombinedTreeProof combined;
@@ -575,15 +575,13 @@ TODO Specify signature challenge
 The response body is AddChainResponse. If `tree_head_type` is set to `standard`,
 this indicates that the exact certificate chain is already present in the
 Certificate Subtree for the reference identifier and published in the rightmost
-log entry. The `subtree_position` field contains the position of the certificate
-chain in the Certificate Subtree.
-
-If `tree_head_type` is set to `provisional`, this indicates that a provisional
-tree head has been issued for the chain. The provisional tree head is given in
-`tree_head` and an inclusion proof in the provisional Prefix Tree is given in
-`prefix`. The `combined` field contains the same contents as in the Get Tree
-endpoint ({{get-tree}}). If `AddChainRequest.subtree_size` is greater than zero,
-then `AddChainResponse.subtree.inclusion` is additionally a consistency proof.
+log entry. If `tree_head_type` is set to `provisional`, this indicates that a
+provisional tree head has been issued for the chain. The provisional tree head
+is given in `tree_head` and an inclusion proof in the provisional Prefix Tree is
+given in `prefix`. The `combined` field contains the same contents as in the Get
+Tree endpoint ({{get-tree}}). If `AddChainRequest.subtree_size` is greater than
+zero, then `AddChainResponse.subtree.inclusion` is additionally a consistency
+proof.
 
 The `bearer_token` field of an AddChainResponse is arbitrarily set by the
 Transparency Log and used to authenticate requests to the Transparency Log's
@@ -1250,6 +1248,74 @@ provided with an appropriate inclusion proof.
 
 TODO ACME extension where CA provides information about which Transparency Logs
 will accept a certificate? To avoid server implementation lock-in of logs. -->
+
+# Performance Considerations
+
+This section contains brief analysis of the performance impacts of the system.
+
+## Transparency Log
+
+**Storage.** The storage of a Transparency Log is long-term bounded (i.e.,
+Transparency Logs will not grow infinitely) and is dominated by the cost of
+storing *unexpired* certificate chains. Certificate chains can be purged once
+they have expired and are at the leftmost edge of the Certificate Subtree. Any
+associated revocations can be purged once the associated certificate chains have
+been. Subtrees of the Log Tree and Prefix Tree may be purged once they are no
+longer necessary to the protocol. For specific leaves of the Log Tree, this
+occurs once they are older than `maximum_lifetime` milliseconds. For subtrees of
+the Prefix Tree, this occurs once all certificate chains stored in the subtree
+have expired.
+
+**Bandwidth.** A TLS server maintaining a valid proof of inclusion for a single
+certificate chain is expected to make the following requests to a Transparency
+Log:
+
+1. When a new certificate chain is first issued, the server will initialize its
+   state (a Get Tree request) and submit the chain to receive a provisional
+   inclusion proof (an Add Chain request).
+2. From then on, the server will regularly obtain the most recent tree head (a
+   Get Tree request with the `tree_size` parameter provided) and refresh its
+   proof of inclusion (a Refresh Proof request).
+
+The table below provides formulas for the size in bytes of the Transparency
+Log's response to each query. Each variable in the formulas is also given a
+"typical" value which is used to estimate the total bandwidth commitment of a
+Transparency Log.
+
+**S**
+: The size of one cryptographic signature in bytes. For the purpose of computing
+  an estimate, S is assumed to be 64 bytes as this is the size of a typical
+  elliptic curve signature.
+
+**N**
+: The height of the Log Tree. Based on a Transparency Log that sequences two new
+  log entries per day, and that has been operating for 365 days, N is estimated
+  to be 11.
+
+**P**
+: The average height of the Prefix Tree. Based on a Transparency Log that stores
+  300 million unique identifiers, P is estimated to be 30.
+
+**M**
+: The average height of a Certificate Subtree. Based on an assumption that a
+  typical Site Operator will issue several hundred certificates, M is estimated
+  to be 10.
+
+| Response Type              | Formula              | Estimated Size | Count |
+|----------------------------|----------------------|----------------|-------|
+| GetTreeResponse (full)     | 694 + S + 52*N       |           1330 |     1 |
+| GetTreeResponse (abridged) | 54 + S               |            118 |   179 |
+| AddChainResponse           | 51 + S + 32*P + 32*M |           1395 |     1 |
+| RefreshProofResponse       | 15 + 32*P            |            975 |   179 |
+
+The "Count" column of the table contains the number of times each response will
+be served to a client, assuming a certificate lifetime of 3 months and that the
+server refreshes its proof twice every day and a half. As such, it's estimated
+that supporting a single Site Operator requires an outbound bandwidth commitment
+from a Transparency Log of approximately 0.2 bits per second.
+
+## TLS Server
+
 
 # Security Considerations
 
