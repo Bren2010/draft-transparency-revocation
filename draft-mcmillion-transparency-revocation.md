@@ -1316,6 +1316,27 @@ from a Transparency Log of approximately 0.2 bits per second.
 
 ## TLS Server
 
+One particularly salient concern about the future of the {{RFC6962}} ecosystem
+is that it requires a multitude of signatures from different co-signers and this
+may not translate well to a world where those signatures are required to come
+from post-quantum signature schemes. Post-quantum signature schemes produce
+signatures that are substantially larger than classical ones, and transmitting a
+significant number of them in the TLS handshake will degrade performance.
+
+The appeal of the system described in this document is that it replaces up to
+three signatures (two from distinct Certificate Transparency logs and one from
+an OCSP staple) with either one or zero signatures.
+
+In the TLS extension described in {{tls-extension}}, the most common response
+one would expect in the TLS server's Certificate message is a
+`SameStandardProof`. This is because clients make an effort to advertise the
+specific version of the Transparency Log that the server can provide a proof for
+without also transmitting a signature.
+
+Using the variables from the previous subsection, the size in bytes of a
+`SameStandardProof` is `15 + 32*P + 32*M`, which would then be estimated at 1295
+bytes in a typical deployment. Compared to transmitting three ML-DSA-44
+signatures, which would add to 7680 bytes, this is an 83% reduction.
 
 # Security Considerations
 
