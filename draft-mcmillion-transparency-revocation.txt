@@ -3,9 +3,9 @@
 
 
 TLS Working Group                                           B. McMillion
-Internet-Draft                                          23 February 2025
+Internet-Draft                                          24 February 2025
 Intended status: Informational                                          
-Expires: 27 August 2025
+Expires: 28 August 2025
 
 
             Reliable Transparency and Revocation Mechanisms
@@ -51,7 +51,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 27 August 2025.
+   This Internet-Draft will expire on 28 August 2025.
 
 Copyright Notice
 
@@ -100,13 +100,16 @@ Table of Contents
      7.3.  Handling Forks
    8.  Certificate Authority
      8.1.  Poison Extension
-   9.  Security Considerations
-     9.1.  ClientHello Extension
-     9.2.  Downgrade Prevention
-   10. IANA Considerations
-   11. References
-     11.1.  Normative References
-     11.2.  Informative References
+   9.  Performance Considerations
+     9.1.  Transparency Log
+     9.2.  TLS Server
+   10. Security Considerations
+     10.1.  ClientHello Extension
+     10.2.  Downgrade Prevention
+   11. IANA Considerations
+   12. References
+     12.1.  Normative References
+     12.2.  Informative References
    Acknowledgments
    Author's Address
 
@@ -652,8 +655,6 @@ Table of Contents
    struct {
      TreeHeadType tree_head_type;
      select (AddChainResponse.tree_head_type) {
-       case standard:
-         uint32 subtree_position;
        case provisional:
          ProvisionalTreeHead tree_head;
          CombinedTreeProof combined;
@@ -677,18 +678,15 @@ Table of Contents
    The response body is AddChainResponse.  If tree_head_type is set to
    standard, this indicates that the exact certificate chain is already
    present in the Certificate Subtree for the reference identifier and
-   published in the rightmost log entry.  The subtree_position field
-   contains the position of the certificate chain in the Certificate
-   Subtree.
-
-   If tree_head_type is set to provisional, this indicates that a
-   provisional tree head has been issued for the chain.  The provisional
-   tree head is given in tree_head and an inclusion proof in the
-   provisional Prefix Tree is given in prefix.  The combined field
-   contains the same contents as in the Get Tree endpoint
-   (Section 4.2.1).  If AddChainRequest.subtree_size is greater than
-   zero, then AddChainResponse.subtree.inclusion is additionally a
-   consistency proof.
+   published in the rightmost log entry.  If tree_head_type is set to
+   provisional, this indicates that a provisional tree head has been
+   issued for the chain.  The provisional tree head is given in
+   tree_head and an inclusion proof in the provisional Prefix Tree is
+   given in prefix.  The combined field contains the same contents as in
+   the Get Tree endpoint (Section 4.2.1).  If
+   AddChainRequest.subtree_size is greater than zero, then
+   AddChainResponse.subtree.inclusion is additionally a consistency
+   proof.
 
    The bearer_token field of an AddChainResponse is arbitrarily set by
    the Transparency Log and used to authenticate requests to the
@@ -1452,9 +1450,87 @@ Table of Contents
    their ClientHello MUST reject a certificate that contains the
    extension if it is not provided with an appropriate inclusion proof.
 
-9.  Security Considerations
+9.  Performance Considerations
 
-9.1.  ClientHello Extension
+   This section contains brief analysis of the performance impacts of
+   the system.
+
+9.1.  Transparency Log
+
+   *Storage.* The storage of a Transparency Log is long-term bounded
+   (i.e., Transparency Logs will not grow infinitely) and is dominated
+   by the cost of storing _unexpired_ certificate chains.  Certificate
+   chains can be purged once they have expired and are at the leftmost
+   edge of the Certificate Subtree.  Any associated revocations can be
+   purged once the associated certificate chains have been.  Subtrees of
+   the Log Tree and Prefix Tree may be purged once they are no longer
+   necessary to the protocol.  For specific leaves of the Log Tree, this
+   occurs once they are older than maximum_lifetime milliseconds.  For
+   subtrees of the Prefix Tree, this occurs once all certificate chains
+   stored in the subtree have expired.
+
+   *Bandwidth.* A TLS server maintaining a valid proof of inclusion for
+   a single certificate chain is expected to make the following requests
+   to a Transparency Log:
+
+   1.  When a new certificate chain is first issued, the server will
+       initialize its state (a Get Tree request) and submit the chain to
+       receive a provisional inclusion proof (an Add Chain request).
+
+   2.  From then on, the server will regularly obtain the most recent
+       tree head (a Get Tree request with the tree_size parameter
+       provided) and refresh its proof of inclusion (a Refresh Proof
+       request).
+
+   The table below provides formulas for the size in bytes of the
+   Transparency Log's response to each query.  Each variable in the
+   formulas is also given a "typical" value which is used to estimate
+   the total bandwidth commitment of a Transparency Log.
+
+   *S*  The size of one cryptographic signature in bytes.  For the
+      purpose of computing an estimate, S is assumed to be 64 bytes as
+      this is the size of a typical elliptic curve signature.
+
+   *N*  The height of the Log Tree.  Based on a Transparency Log that
+      sequences two new log entries per day, and that has been operating
+      for 365 days, N is estimated to be 11.
+
+   *P*  The average height of the Prefix Tree.  Based on a Transparency
+      Log that stores 300 million unique identifiers, P is estimated to
+      be 30.
+
+   *M*  The average height of a Certificate Subtree.  Based on an
+      assumption that a typical Site Operator will issue several hundred
+      certificates, M is estimated to be 10.
+
+   +========================+================+================+=======+
+   | Response Type          | Formula        | Estimated Size | Count |
+   +========================+================+================+=======+
+   | GetTreeResponse (full) | 694 + S + 52*N | 1330           | 1     |
+   +------------------------+----------------+----------------+-------+
+   | GetTreeResponse        | 54 + S         | 118            | 179   |
+   | (abridged)             |                |                |       |
+   +------------------------+----------------+----------------+-------+
+   | AddChainResponse       | 51 + S + 32_P  | 1395           | 1     |
+   |                        | + 32_M         |                |       |
+   +------------------------+----------------+----------------+-------+
+   | RefreshProofResponse   | 15 + 32*P      | 975            | 179   |
+   +------------------------+----------------+----------------+-------+
+
+                                 Table 1
+
+   The "Count" column of the table contains the number of times each
+   response will be served to a client, assuming a certificate lifetime
+   of 3 months and that the server refreshes its proof twice every day
+   and a half.  As such, it's estimated that supporting a single Site
+   Operator requires an outbound bandwidth commitment from a
+   Transparency Log of approximately 0.2 bits per second.
+
+9.2.  TLS Server
+
+10.  Security Considerations
+
+10.1.  ClientHello Extension
 
    Given that ClientHello extensions are sent unencrypted, this portion
    of the extension was designed to avoid unnecessary privacy leaks.  In
@@ -1515,7 +1591,7 @@ Table of Contents
    before.  Similarly, it is not a goal to prevent a host from
    identifying the same client over many connections.
 
-9.2.  Downgrade Prevention
+10.2.  Downgrade Prevention
 
    The stronger transparency and non-revocation guarantees this protocol
    provides would be irrelevant if a malicious actor could cause the TLS
@@ -1540,7 +1616,7 @@ Table of Contents
    issuance by a Certificate Authority rather than abuse of a
    compromised/revoked certificate.
 
-10.  IANA Considerations
+11.  IANA Considerations
 
    *  Codepoint for TLS extension "transparency_revocation"
 
@@ -1548,9 +1624,9 @@ Table of Contents
 
    *  OID for poison extension
 
-11.  References
+12.  References
 
-11.1.  Normative References
+12.1.  Normative References
 
    [I-D.draft-ietf-keytrans-protocol]
               McMillion, B. and F. Linker, "Key Transparency Protocol",
@@ -1568,7 +1644,7 @@ Table of Contents
               2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
               May 2017, <https://www.rfc-editor.org/rfc/rfc8174>.
 
-11.2.  Informative References
+12.2.  Informative References
 
    [ct-in-wild]
               Li, B., "Certificate Transparency in the Wild: Exploring
