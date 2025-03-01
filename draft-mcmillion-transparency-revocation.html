@@ -1053,11 +1053,11 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <thead><tr>
 <td class="left">Internet-Draft</td>
 <td class="center">Reliable Transparency and Revocation Mec</td>
-<td class="right">February 2025</td>
+<td class="right">March 2025</td>
 </tr></thead>
 <tfoot><tr>
 <td class="left">McMillion</td>
-<td class="center">Expires 28 August 2025</td>
+<td class="center">Expires 2 September 2025</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1070,12 +1070,12 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <dd class="internet-draft">draft-mcmillion-transparency-revocation-latest</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2025-02-24" class="published">24 February 2025</time>
+<time datetime="2025-03-01" class="published">1 March 2025</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Informational</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2025-08-28">28 August 2025</time></dd>
+<dd class="expires"><time datetime="2025-09-02">2 September 2025</time></dd>
 <dt class="label-authors">Author:</dt>
 <dd class="authors">
 <div class="author">
@@ -1126,7 +1126,7 @@ of cascading outages.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 28 August 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 2 September 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1325,9 +1325,9 @@ compromise of a single Transparency Log or the unexpected acquisition of a
 single business is often sufficient to allow the possibility of undetectable
 mis-issued certificates. This is compounded by the fact that multiple parties in
 the CT ecosystem play multiple roles (such as Certificate Authorities that are
-also Transparency Log operators that are also browser vendors), which makes
+also Transparency Log operators), which makes
 reasoning about the possibility of collusion even more tricky.<a href="#section-1-2" class="pilcrow">¶</a></p>
-<p id="section-1-3">It is also becoming far too expensive to both operate a CT log, and to monitor
+<p id="section-1-3">It is also becoming far too expensive to both operate a CT log and to monitor
 CT logs. Logs are required to serve their entire contents to anyone on the
 internet, which consumes a significant amount of outbound bandwidth. Similarly,
 monitoring certificate issuance in CT requires downloading the entire contents
@@ -1344,7 +1344,7 @@ unfortunately been the victim of waning support for OCSP by Certificate
 Authorities.<a href="#section-1-4" class="pilcrow">¶</a></p>
 <p id="section-1-5">This motivates a need for a new system of publishing certificates that's
 resistant to collusion and dramatically more efficient to operate, and a need
-for a new system of revoking certificates that can be reliably enforced.<a href="#section-1-5" class="pilcrow">¶</a></p>
+for a new system of revoking certificates that can be consistently enforced.<a href="#section-1-5" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="conventions-and-definitions">
@@ -1418,15 +1418,15 @@ addresses.<a href="#section-3.1-2.3.1" class="pilcrow">¶</a></p>
 the web PKI as it exists today.<a href="#section-3.1-2.4.1" class="pilcrow">¶</a></p>
 </li>
           <li id="section-3.1-2.5">
-            <p id="section-3.1-2.5.1">Clients must be able to connect to a server without having immediate
+            <p id="section-3.1-2.5.1">User Agents must be able to connect to a server without having immediate
 connectivity to third-party services.<a href="#section-3.1-2.5.1" class="pilcrow">¶</a></p>
 </li>
           <li id="section-3.1-2.6">
-            <p id="section-3.1-2.6.1">The domain names and/or IP addresses of websites visited by a client must not
+            <p id="section-3.1-2.6.1">The domain names and/or IP addresses of websites visited by a User Agent must not
 be leaked, other than how they are in the web PKI as it exists today.<a href="#section-3.1-2.6.1" class="pilcrow">¶</a></p>
 </li>
           <li id="section-3.1-2.7">
-            <p id="section-3.1-2.7.1">The system must be reasonable for non-browser user agents to deploy.<a href="#section-3.1-2.7.1" class="pilcrow">¶</a></p>
+            <p id="section-3.1-2.7.1">The system must be reasonable for non-browser User Agents to deploy.<a href="#section-3.1-2.7.1" class="pilcrow">¶</a></p>
 </li>
           <li id="section-3.1-2.8">
             <p id="section-3.1-2.8.1">The system must have a reasonable path to scale indefinitely.<a href="#section-3.1-2.8.1" class="pilcrow">¶</a></p>
@@ -1459,7 +1459,7 @@ larger number of co-signers need to collude to succeed in launching an attack.
 However, requiring that a large number of signatures from different co-signers
 be presented in every TLS handshake would easily bloat the handshake to an
 unacceptable degree. This is especially true when the signatures are required to
-come from quantum-secure signature schemes, given that they're much larger than
+come from post-quantum signature schemes, given that they're much larger than
 their classical alternatives.<a href="#section-3.2-3" class="pilcrow">¶</a></p>
 <p id="section-3.2-4">While the system described in this document supports stateless verification,
 which is secure as long as there's no collusion between trusted parties, it also
@@ -1538,13 +1538,12 @@ servers.<a href="#section-3.2-12" class="pilcrow">¶</a></p>
 to ensure that all potentially relevant entries are found. This quickly becomes
 prohibitively expensive for all parties, violating requirements 3 and 8.
 Currently roughly 7.5 million certificates are issued per day, with an average
-size of 3 kilobytes. This means that a site operator would need to download
+size of 3 kilobytes. This means that a Site Operator would need to download
 almost 700 gigabytes of certificates to cover a single month of issuance.
 Outbound bandwidth typically costs between 1 to 9 cents per gigabyte, which
-means that providing this data to a single site operator would cost the
+means that providing this data to a single Site Operator would cost the
 Transparency Log between $6 to $60. For any reasonable estimate of the number of
-site operators on the internet, this represents an exceptional burden on a
-Transparency Log.<a href="#section-3.2-13" class="pilcrow">¶</a></p>
+Site Operators on the internet, this would be an exceptional financial burden.<a href="#section-3.2-13" class="pilcrow">¶</a></p>
 <p id="section-3.2-14">In the existing Certificate Transparency ecosystem, because of this exceptional
 cost, Site Operators have overwhelmingly elected not to do this work themselves
 and have instead outsourced it to third-party monitors. Third-party monitors
@@ -1617,7 +1616,7 @@ efficient.<a href="#section-3.3-2.4.1" class="pilcrow">¶</a></p>
 provide access to it through the endpoints described below. Transparency Logs
 are generally only contacted by Site Operators. Site Operators regularly issue
 requests to the Transparency Log's endpoints to either obtain fresh inclusion
-proofs for their certificates, or to monitor for mis-issuances affecting their
+proofs for their certificates or to monitor for mis-issuances affecting their
 properties.<a href="#section-4-1" class="pilcrow">¶</a></p>
 <p id="section-4-2">While a Transparency Log may be operated by a Certificate Authority,
 Transparency Logs <span class="bcp14">SHOULD</span> accept certificates issued by a broad set of the
