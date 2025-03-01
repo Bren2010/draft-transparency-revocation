@@ -64,10 +64,10 @@ compromise of a single Transparency Log or the unexpected acquisition of a
 single business is often sufficient to allow the possibility of undetectable
 mis-issued certificates. This is compounded by the fact that multiple parties in
 the CT ecosystem play multiple roles (such as Certificate Authorities that are
-also Transparency Log operators that are also browser vendors), which makes
+also Transparency Log operators), which makes
 reasoning about the possibility of collusion even more tricky.
 
-It is also becoming far too expensive to both operate a CT log, and to monitor
+It is also becoming far too expensive to both operate a CT log and to monitor
 CT logs. Logs are required to serve their entire contents to anyone on the
 internet, which consumes a significant amount of outbound bandwidth. Similarly,
 monitoring certificate issuance in CT requires downloading the entire contents
@@ -86,7 +86,7 @@ Authorities.
 
 This motivates a need for a new system of publishing certificates that's
 resistant to collusion and dramatically more efficient to operate, and a need
-for a new system of revoking certificates that can be reliably enforced.
+for a new system of revoking certificates that can be consistently enforced.
 
 
 # Conventions and Definitions
@@ -130,11 +130,11 @@ The following baseline requirements for the system are as follows:
    addresses.
 4. The system must not have any single points of failure, other than those in
    the web PKI as it exists today.
-5. Clients must be able to connect to a server without having immediate
+5. User Agents must be able to connect to a server without having immediate
    connectivity to third-party services.
-6. The domain names and/or IP addresses of websites visited by a client must not
+6. The domain names and/or IP addresses of websites visited by a User Agent must not
    be leaked, other than how they are in the web PKI as it exists today.
-7. The system must be reasonable for non-browser user agents to deploy.
+7. The system must be reasonable for non-browser User Agents to deploy.
 8. The system must have a reasonable path to scale indefinitely.
 
 These requirements and their main consequences are discussed in more detail in
@@ -162,7 +162,7 @@ larger number of co-signers need to collude to succeed in launching an attack.
 However, requiring that a large number of signatures from different co-signers
 be presented in every TLS handshake would easily bloat the handshake to an
 unacceptable degree. This is especially true when the signatures are required to
-come from quantum-secure signature schemes, given that they're much larger than
+come from post-quantum signature schemes, given that they're much larger than
 their classical alternatives.
 
 While the system described in this document supports stateless verification,
@@ -251,13 +251,12 @@ Most transparency systems require downloading the entirety of the log's contents
 to ensure that all potentially relevant entries are found. This quickly becomes
 prohibitively expensive for all parties, violating requirements 3 and 8.
 Currently roughly 7.5 million certificates are issued per day, with an average
-size of 3 kilobytes. This means that a site operator would need to download
+size of 3 kilobytes. This means that a Site Operator would need to download
 almost 700 gigabytes of certificates to cover a single month of issuance.
 Outbound bandwidth typically costs between 1 to 9 cents per gigabyte, which
-means that providing this data to a single site operator would cost the
+means that providing this data to a single Site Operator would cost the
 Transparency Log between $6 to $60. For any reasonable estimate of the number of
-site operators on the internet, this represents an exceptional burden on a
-Transparency Log.
+Site Operators on the internet, this would be an exceptional financial burden.
 
 In the existing Certificate Transparency ecosystem, because of this exceptional
 cost, Site Operators have overwhelmingly elected not to do this work themselves
@@ -312,7 +311,7 @@ Transparency Logs are online services that maintain a tree data structure and
 provide access to it through the endpoints described below. Transparency Logs
 are generally only contacted by Site Operators. Site Operators regularly issue
 requests to the Transparency Log's endpoints to either obtain fresh inclusion
-proofs for their certificates, or to monitor for mis-issuances affecting their
+proofs for their certificates or to monitor for mis-issuances affecting their
 properties.
 
 While a Transparency Log may be operated by a Certificate Authority,
