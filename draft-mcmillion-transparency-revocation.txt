@@ -3,9 +3,12 @@
 
 
 TLS Working Group                                           B. McMillion
-Internet-Draft                                              1 March 2025
-Intended status: Informational                                          
-Expires: 2 September 2025
+Internet-Draft                                                          
+Intended status: Informational                                D. O'Brien
+Expires: 5 September 2025                                     Google LLC
+                                                              D. Jackson
+                                                                 Mozilla
+                                                            4 March 2025
 
 
             Reliable Transparency and Revocation Mechanisms
@@ -51,7 +54,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 2 September 2025.
+   This Internet-Draft will expire on 5 September 2025.
 
 Copyright Notice
 
@@ -111,7 +114,7 @@ Table of Contents
      12.1.  Normative References
      12.2.  Informative References
    Acknowledgments
-   Author's Address
+   Authors' Addresses
 
 1.  Introduction
 
@@ -138,8 +141,8 @@ Table of Contents
    several terabytes of data at minimum.
 
    The fundamental purpose for publishing TLS certificates is to allow
-   site operators to identify and and revoke those certificates which
-   are mis-issued.  However, revocation systems have historically been
+   site operators to identify and revoke those certificates which are
+   mis-issued.  However, revocation systems have historically been
    plagued by a requirement to "fail open".  That is, revocation checks
    would stop being enforced in certain (often, easily engineered)
    scenarios.  For example, if the server didn't proactively offer proof
@@ -187,19 +190,20 @@ Table of Contents
    The following baseline requirements for the system are as follows:
 
    1.  For a certificate to be mis-issued and not eventually published:
-       two trusted parties must collude to misbehave and all verifiers
+       two trusted parties must collude to misbehave and all User Agents
        that observed the certificate must be stateless.
 
-   2.  For a verifier to accept a revoked certificate and this not be
+   2.  For a User Agent to accept a revoked certificate and this not be
        eventually detected: one trusted party must misbehave and all
-       verifiers that accepted the certificate must be stateless.
+       User Agents that accepted the certificate must be stateless.
 
    3.  It must be reasonably efficient for Site Operators to audit all
        trusted Certificate Authorities for mis-issuances affecting their
        domain names and IP addresses.
 
-   4.  The system must not have any single points of failure, other than
-       those in the web PKI as it exists today.
+   4.  It must not be possible for a third-party service's outage to
+       cause an outage for a Site Operator, other than how it could in
+       the web PKI as it exists today.
 
    5.  User Agents must be able to connect to a server without having
        immediate connectivity to third-party services.
@@ -211,7 +215,8 @@ Table of Contents
    7.  The system must be reasonable for non-browser User Agents to
        deploy.
 
-   8.  The system must have a reasonable path to scale indefinitely.
+   8.  The system must have a reasonable path to scale to an indefinite
+       number of Site Operators and User Agents.
 
    These requirements and their main consequences are discussed in more
    detail in the following subsection.
@@ -331,14 +336,14 @@ Table of Contents
    then a second revocation mechanism for these certificates is
    necessary.
 
-   *Transparency Logs must implement the Key Transparency protocol.* As
-   stated at the beginning of this section, the goal of any transparency
-   system is to ensure that data shown to one participant is equally
-   visible to any other participant.  In the context of the web PKI,
-   this means that a Site Operator that contacts all trusted
-   Transparency Logs should come away with an exhaustive knowledge of
-   all certificates that a client might be presented with when
-   connecting to their servers.
+   *Transparency Logs must implement a protocol similar to Key
+   Transparency [KEYTRANS].* As stated at the beginning of this section,
+   the goal of any transparency system is to ensure that data shown to
+   one participant is equally visible to any other participant.  In the
+   context of the web PKI, this means that a Site Operator that contacts
+   all trusted Transparency Logs should come away with an exhaustive
+   knowledge of all certificates that a client might be presented with
+   when connecting to their servers.
 
    Most transparency systems require downloading the entirety of the
    log's contents to ensure that all potentially relevant entries are
@@ -349,29 +354,36 @@ Table of Contents
    gigabytes of certificates to cover a single month of issuance.
    Outbound bandwidth typically costs between 1 to 9 cents per gigabyte,
    which means that providing this data to a single Site Operator would
-   cost the Transparency Log between $6 to $60.  For any reasonable
-   estimate of the number of Site Operators on the internet, this would
-   be an exceptional financial burden.
+   cost the Transparency Log between $6 to $60.  If even a small
+   percentage of all Site Operators on the internet were to do this, it
+   would create an exceptional financial and operational burden for the
+   Transparency Log.
 
    In the existing Certificate Transparency ecosystem, because of this
    exceptional cost, Site Operators have overwhelmingly elected not to
    do this work themselves and have instead outsourced it to third-party
    monitors.  Third-party monitors represent a problematic break in the
-   security guarantees of Certificate Transparency, as there are no
+   security guarantees of Certificate Transparency as there are no
    enforceable requirements on their behavior.  They are not audited for
-   correct behavior like Certificate Authorities are, and there are no
+   correct behavior like Certificate Authorities are and there are no
    technical mechanisms to prevent misbehavior like a Transparency Log
-   would have.  This has had the real-world impact of undermining the
-   system's transparency guarantees [ct-in-wild].
+   would have.
 
-   Key Transparency [I-D.draft-ietf-keytrans-protocol] augments a
-   Transparency Log with additional structure to allow efficient and
-   verifiable searches for specific data.  This allows Site Operators to
-   download only a small subset of the entries of the Transparency Log,
-   but still be guaranteed to have received all certificates that are
-   relevant to them.  As a result of the significantly reduced need for
-   outbound bandwidth, operating such a Transparency Log would cost
-   around one million times less than it would otherwise.
+   Key Transparency systems are generally distinguished from other
+   transparency systems by the fact that they augment a Transparency Log
+   with additional structure to allow efficient and verifiable searches
+   for specific data.  In the context of providing transparency to the
+   web PKI, this would allow Site Operators to download only a small
+   subset of the data in a Transparency Log and still be assured to have
+   received all certificates that are relevant to them.  As a result of
+   the significantly reduced need for outbound bandwidth, operating such
+   a Transparency Log would cost roughly one million times less than it
+   would if Site Operators were required to download the log's entire
+   contents.
+
+   While the protocol described in [KEYTRANS] could be applied directly,
+   some optimizations and simplifications specific to the web PKI are
+   provided in Section 4.
 
 3.3.  Summary
 
@@ -427,10 +439,9 @@ Table of Contents
 4.1.  Structure
 
    The data structure maintained by a Transparency Log is identical to
-   the Combined Tree described in [I-D.draft-ietf-keytrans-protocol],
-   with two exceptions: the search keys that are used to navigate the
-   Prefix Tree, and the data committed to by each Prefix Tree leaf node,
-   are different.
+   the Combined Tree described in [KEYTRANS], with two exceptions: the
+   search keys that are used to navigate the Prefix Tree, and the data
+   committed to by each Prefix Tree leaf node, are different.
 
    The search key used to navigate the Prefix Tree is a function of the
    certificate's *reference identifier* in the TLS handshake.  The
@@ -441,8 +452,7 @@ Table of Contents
    or IP address is then hashed, producing the value which is used to
    navigate the Prefix Tree.  The hash function used corresponds to the
    ciphersuite hash function.  No VRF is used, or version counter is
-   included in the hash function input, as they would be in
-   [I-D.draft-ietf-keytrans-protocol].
+   included in the hash function input, as they would be in [KEYTRANS].
 
    Rather than a privacy-preserving commitment, each Prefix Tree leaf
    contains the hash of a DomainCertificates structure:
@@ -510,11 +520,11 @@ Table of Contents
    recompute the hash of the DomainCertificates structure stored at a
    given leaf of the Prefix Tree.
 
-   Note that this document follows the pattern established in
-   [I-D.draft-ietf-keytrans-protocol] of requiring each element of an
-   InclusionProof to be a balanced subtree.  An InclusionProof may also
-   function as a "consistency proof" if the recipient is known to have
-   observed a previous version of the tree.
+   Note that this document follows the pattern established in [KEYTRANS]
+   of requiring each element of an InclusionProof to be a balanced
+   subtree.  An InclusionProof may also function as a "consistency
+   proof" if the recipient is known to have observed a previous version
+   of the tree.
 
 4.1.2.  Tree Heads
 
@@ -578,8 +588,8 @@ Table of Contents
    time in milliseconds that a tree head may be ahead of or behind the
    user's local clock without being rejected.  If the Transparency Log
    has chosen to define a maximum lifetime for log entries, per
-   Section 5.2 of [I-D.draft-ietf-keytrans-protocol], this duration in
-   milliseconds is stored in the maximum_lifetime field.
+   Section 5.2 of [KEYTRANS], this duration in milliseconds is stored in
+   the maximum_lifetime field.
 
    When the TreeHeadTBS structure is for a provisional tree head type,
    prefix_root contains the work-in-progress root hash of the Prefix
@@ -622,15 +632,13 @@ Table of Contents
    The combined field contains the following:
 
    *  The output of updating the view of the tree from tree_size (if
-      provided) to tree_head.tree_size (Section 10.3.1 of
-      [I-D.draft-ietf-keytrans-protocol]).
+      provided) to tree_head.tree_size (Section 10.3.1 of [KEYTRANS]).
 
    *  The timestamps of all log entries that are more recent than
       tree_size and have timestamps less than or equal to 10*max_behind.
       These timestamps are provided in left-to-right order.  However,
       note that some of them may be omitted if they are duplicates with
-      the previous bullet, as explained in Section 10.3 of
-      [I-D.draft-ietf-keytrans-protocol].
+      the previous bullet, as explained in Section 10.3 of [KEYTRANS].
 
    If tree_size is provided, the proof in combined.inclusion is
    additionally a consistency proof.
@@ -995,11 +1003,10 @@ Table of Contents
 
    2.  Verify combined as executing the following proofs in this order:
 
-       1.  Updating the view of the tree (Section 10.3.1 of
-           [I-D.draft-ietf-keytrans-protocol]).  Note that verifying
-           this proof step also verifies that the rightmost log entry's
-           timestamp is within the bounds set by max_ahead and
-           max_behind.
+       1.  Updating the view of the tree (Section 10.3.1 of [KEYTRANS]).
+           Note that verifying this proof step also verifies that the
+           rightmost log entry's timestamp is within the bounds set by
+           max_ahead and max_behind.
 
        2.  If a provisional tree head was advertised by the client and
            the subsequent log entry is not the rightmost log entry, then
@@ -1079,11 +1086,10 @@ Table of Contents
 
    2.  Verify combined as executing the following proofs in this order:
 
-       1.  Updating the view of the tree (Section 10.3.1 of
-           [I-D.draft-ietf-keytrans-protocol]).  Note that verifying
-           this proof step also verifies that the rightmost log entry's
-           timestamp is within the bounds set by max_ahead and
-           max_behind.
+       1.  Updating the view of the tree (Section 10.3.1 of [KEYTRANS]).
+           Note that verifying this proof step also verifies that the
+           rightmost log entry's timestamp is within the bounds set by
+           max_ahead and max_behind.
 
        2.  If a provisional tree head was advertised by the client and
            the subsequent log entry exists, then the subsequent log
@@ -1653,8 +1659,7 @@ Table of Contents
 
 12.1.  Normative References
 
-   [I-D.draft-ietf-keytrans-protocol]
-              McMillion, B. and F. Linker, "Key Transparency Protocol",
+   [KEYTRANS] McMillion, B. and F. Linker, "Key Transparency Protocol",
               Work in Progress, Internet-Draft, draft-ietf-keytrans-
               protocol-00, 10 December 2024,
               <https://datatracker.ietf.org/doc/html/draft-ietf-
@@ -1670,11 +1675,6 @@ Table of Contents
               May 2017, <https://www.rfc-editor.org/rfc/rfc8174>.
 
 12.2.  Informative References
-
-   [ct-in-wild]
-              Li, B., "Certificate Transparency in the Wild: Exploring
-              the Reliability of Monitors", 6 November 2019,
-              <https://dl.acm.org/doi/pdf/10.1145/3319535.3345653>.
 
    [RFC6962]  Laurie, B., Langley, A., and E. Kasper, "Certificate
               Transparency", RFC 6962, DOI 10.17487/RFC6962, June 2013,
@@ -1692,7 +1692,17 @@ Acknowledgments
 
    TODO acknowledge.
 
-Author's Address
+Authors' Addresses
 
    Brendan McMillion
    Email: brendanmcmillion@gmail.com
+
+
+   Devon O'Brien
+   Google LLC
+   Email: asymmetric@google.com
+
+
+   Dennis Jackson
+   Mozilla
+   Email: ietf@dennis-jackson.uk
