@@ -1390,8 +1390,8 @@ and revocations issued by a wide range of Certificate Authorities.<a href="#sect
         <dd class="break"></dd>
 <dt id="section-3-2.5"><strong>Site Operator:</strong></dt>
         <dd style="margin-left: 1.5em" id="section-3-2.6">
-          <p id="section-3-2.6.1">The individual or organization responsible for the operation and maintenance
-of a website, as identified by a single domain name or IP address.<a href="#section-3-2.6.1" class="pilcrow">¶</a></p>
+          <p id="section-3-2.6.1">The individual or organization responsible for operating and maintaining
+a website, as identified by a single domain name or IP address.<a href="#section-3-2.6.1" class="pilcrow">¶</a></p>
 </dd>
         <dd class="break"></dd>
 <dt id="section-3-2.7"><strong>User Agent:</strong></dt>
@@ -1456,7 +1456,7 @@ the following subsection.<a href="#section-3.1-3" class="pilcrow">¶</a></p>
 <p id="section-3.2-1"><strong>Transparency must support stateful verification.</strong> The fundamental goal of any
 transparency system is to ensure that data shown to one participant is equally
 visible to any other participant. Transparency systems that achieve this by
-relying solely on stateless verification are more accurately referred to as a
+relying solely on stateless verification are more accurately referred to as
 "co-signing" schemes. This is because the security of these systems reduces
 solely to successful verification of the co-signers' signatures on a claim that
 some data is properly published, and ultimately to an assumption that the
@@ -1571,8 +1571,8 @@ systems by the fact that they augment a Transparency Log with additional
 structure to allow efficient and verifiable searches for specific data. In the
 context of providing transparency to the web PKI, this would allow Site
 Operators to download only a small subset of the data in a Transparency Log and
-still be assured to have received all certificates that are relevant to them. As
-a result of the significantly reduced need for outbound bandwidth, operating
+still be assured to have received all certificates that are relevant to them.
+Due to the significantly reduced need for outbound bandwidth, operating
 such a Transparency Log would cost roughly one million times less than it would
 if Site Operators were required to download the log's entire contents.<a href="#section-3.2-15" class="pilcrow">¶</a></p>
 <p id="section-3.2-16">While the protocol described in <span>[<a href="#KEYTRANS" class="cite xref">KEYTRANS</a>]</span> could be applied directly, some
@@ -1631,8 +1631,8 @@ efficient.<a href="#section-3.3-2.4.1" class="pilcrow">¶</a></p>
 <a href="#section-4" class="section-number selfRef">4. </a><a href="#name-transparency-log" class="section-name selfRef">Transparency Log</a>
       </h2>
 <p id="section-4-1">Transparency Logs are online services that maintain a tree data structure and
-provide access to it through the endpoints described below. Transparency Logs
-are generally only contacted by Site Operators. Site Operators regularly issue
+provide access to it through the endpoints described below. Generally, only Site
+Operators contact Transparency Logs. Site Operators regularly issue
 requests to the Transparency Log's endpoints to either obtain fresh inclusion
 proofs for their certificates or to monitor for mis-issuances affecting their
 properties.<a href="#section-4-1" class="pilcrow">¶</a></p>
@@ -1719,7 +1719,7 @@ struct {
 </pre><a href="#section-4.1.1-2" class="pilcrow">¶</a>
 </div>
 <p id="section-4.1.1-3">The <code>position</code> field contains the index of the leaf for which inclusion is being
-proven, while the <code>size</code> field contains the total number of leaves in the
+proven. The <code>size</code> field contains the total number of leaves in the
 Certificate Subtree. The proof in <code>inclusion</code> allows a recipient to recompute
 the root hash of the Certificate Subtree, given the correct value for the leaf
 at <code>position</code>.<a href="#section-4.1.1-3" class="pilcrow">¶</a></p>
@@ -1769,7 +1769,7 @@ struct {
   opaque signature_public_key&lt;0..2^16-1&gt;;
 
   uint64 max_ahead;
-  unit64 max_behind;
+  uint64 max_behind;
   optional&lt;uint64&gt; maximum_lifetime;
 } Configuration;
 
@@ -1825,7 +1825,7 @@ to TLS format and then base64 encoded.<a href="#section-4.2-1" class="pilcrow">�
           <h4 id="name-get-tree">
 <a href="#section-4.2.1" class="section-number selfRef">4.2.1. </a><a href="#name-get-tree" class="section-name selfRef">Get Tree</a>
           </h4>
-<p id="section-4.2.1-1">This endpoint is accessed by Site Operators to initialize or update their view
+<p id="section-4.2.1-1">Site Operators access this endpoint to initialize or update their view
 of the tree for the purpose of providing inclusion proofs to clients.<a href="#section-4.2.1-1" class="pilcrow">¶</a></p>
 <p id="section-4.2.1-2">GET /get-tree{?tree_size=X}<a href="#section-4.2.1-2" class="pilcrow">¶</a></p>
 <div class="lang-tls sourcecode" id="section-4.2.1-3">
@@ -1868,7 +1868,7 @@ consistency proof.<a href="#section-4.2.1-7" class="pilcrow">¶</a></p>
           <h4 id="name-add-chain">
 <a href="#section-4.2.2" class="section-number selfRef">4.2.2. </a><a href="#name-add-chain" class="section-name selfRef">Add Chain</a>
           </h4>
-<p id="section-4.2.2-1">This endpoint is accessed by Site Operators to produce a proof of inclusion for
+<p id="section-4.2.2-1">Site Operators access this endpoint to produce a proof of inclusion for
 their certificate chain.<a href="#section-4.2.2-1" class="pilcrow">¶</a></p>
 <p id="section-4.2.2-2">POST /add-chain<a href="#section-4.2.2-2" class="pilcrow">¶</a></p>
 <div class="lang-tls sourcecode" id="section-4.2.2-3">
@@ -1924,7 +1924,7 @@ certificate chain has expired (regardless of revocation status).<a href="#sectio
           <h4 id="name-refresh-proof">
 <a href="#section-4.2.3" class="section-number selfRef">4.2.3. </a><a href="#name-refresh-proof" class="section-name selfRef">Refresh Proof</a>
           </h4>
-<p id="section-4.2.3-1">This endpoint is accessed by Site Operators to refresh a proof of inclusion for
+<p id="section-4.2.3-1">Site Operators access this endpoint to refresh a proof of inclusion for
 their certificate chain, making it acceptable to clients for a longer period of
 time.<a href="#section-4.2.3-1" class="pilcrow">¶</a></p>
 <p id="section-4.2.3-2">GET /refresh-proof?bearer_token=X&amp;position=Y<a href="#section-4.2.3-2" class="pilcrow">¶</a></p>
@@ -1954,7 +1954,7 @@ associated with <code>bearer_token</code>, as it existed in the requested log en
           <h4 id="name-get-certificates">
 <a href="#section-4.2.4" class="section-number selfRef">4.2.4. </a><a href="#name-get-certificates" class="section-name selfRef">Get Certificates</a>
           </h4>
-<p id="section-4.2.4-1">This endpoint is contacted by Site Operators for the purpose of auditing
+<p id="section-4.2.4-1">Site Operators access this endpoint for the purpose of auditing
 certificates that have been issued for their domain names or IP addresses.<a href="#section-4.2.4-1" class="pilcrow">¶</a></p>
 <p id="section-4.2.4-2">GET /get-certificates?bearer_token=X&amp;start=Y<a href="#section-4.2.4-2" class="pilcrow">¶</a></p>
 <div class="lang-tls sourcecode" id="section-4.2.4-3">
@@ -1982,7 +1982,7 @@ than <code>maximum_lifetime</code> milliseconds in the past.<a href="#section-4.
           <h4 id="name-add-revocation">
 <a href="#section-4.2.5" class="section-number selfRef">4.2.5. </a><a href="#name-add-revocation" class="section-name selfRef">Add Revocation</a>
           </h4>
-<p id="section-4.2.5-1">This endpoint is contacted by Site Operators or Certificate Authorities for the
+<p id="section-4.2.5-1">Site Operators or Certificate Authorities access this endpoint for the
 purpose of distributing revocations for their certificates.<a href="#section-4.2.5-1" class="pilcrow">¶</a></p>
 <p id="section-4.2.5-2">POST /add-revocation<a href="#section-4.2.5-2" class="pilcrow">¶</a></p>
 <div class="lang-tls sourcecode" id="section-4.2.5-3">
@@ -2006,7 +2006,7 @@ milliseconds.<a href="#section-4.2.5-4" class="pilcrow">¶</a></p>
           <h4 id="name-get-revocations">
 <a href="#section-4.2.6" class="section-number selfRef">4.2.6. </a><a href="#name-get-revocations" class="section-name selfRef">Get Revocations</a>
           </h4>
-<p id="section-4.2.6-1">This endpoint is contacted by Site Operators to audit revocations affecting
+<p id="section-4.2.6-1">Site Operators access this endpoint to audit revocations affecting
 their certificate chains.<a href="#section-4.2.6-1" class="pilcrow">¶</a></p>
 <p id="section-4.2.6-2">GET /get-revocations?bearer_token=X{&amp;page=Y}<a href="#section-4.2.6-2" class="pilcrow">¶</a></p>
 <div class="lang-tls sourcecode" id="section-4.2.6-3">
@@ -2568,8 +2568,7 @@ contacted over Oblivious HTTP <span>[<a href="#RFC9458" class="cite xref">RFC945
 and the rightmost log entry's timestamp is more than <code>10*max_behind</code>
 milliseconds in the past, the client <span class="bcp14">MUST</span> report the provisional inclusion proof
 to a party distinct from the issuing Certificate Authority and the operator of
-the Transparency Log. The client can then delete the associated state at its
-discretion.<a href="#section-6.3-1" class="pilcrow">¶</a></p>
+the Transparency Log. The client can then delete the associated state at will.<a href="#section-6.3-1" class="pilcrow">¶</a></p>
 <p id="section-6.3-2">The purpose of reporting provisional inclusion proofs that are unable to be
 resolved is to ensure that there is broader ecosystem awareness of a potential
 issue with the Transparency Log. The extent to which there was any malicious
@@ -2671,7 +2670,7 @@ a new independent fork.<a href="#section-7.1-5" class="pilcrow">¶</a></p>
 <a href="#section-7.2" class="section-number selfRef">7.2. </a><a href="#name-server-behavior" class="section-name selfRef">Server Behavior</a>
         </h3>
 <p id="section-7.2-1">To prevent connection failure, it's critical that servers that implement the TLS
-extension in <a href="#tls-extension" class="auto internal xref">Section 5</a> always have a satisfactory proof to offer to
+extension in <a href="#tls-extension" class="auto internal xref">Section 5</a> always have satisfactory proof to offer to
 clients. Servers <span class="bcp14">MUST</span> implement the automatic refreshing of proofs and <span class="bcp14">MUST</span>
 implement automatic failover between multiple trusted Transparency Logs in the
 event that one is temporarily unavailable.<a href="#section-7.2-1" class="pilcrow">¶</a></p>
@@ -2700,8 +2699,8 @@ provisional certificate along with a 12- or 16-byte random value. The random
 value would then be used to compute the pre-shared key to give the client. When
 the client later advertises the bearer token back, it can be decrypted by the
 server to identify the provisional certificate to respond with and to re-compute
-the pre-shared key for the connection. This minimizes the operational burden on
-the server and also effectively preserves client privacy.<a href="#section-7.2-4" class="pilcrow">¶</a></p>
+the pre-shared key for the connection. This minimizes the server operational burden
+and also effectively preserves client privacy.<a href="#section-7.2-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="handling-forks">
@@ -2715,7 +2714,7 @@ Logs are generally expected to be append-only, meaning that log entries are neve
 removed once they've been added. However, enforcing this strictly is
 incompatible with many of the standard best-practices for operating reliable
 software systems. For example, if this property needed to be enforced strictly,
-it would pointless to back up such a Transparency Log. Restoring from backup
+it would be pointless to back up such a Transparency Log. Restoring from backup
 would imply some degree of rollback and this would be unacceptable. As such, it
 is necessary for the protocol to handle reasonable violations of these
 expectations gracefully, and in a way that preserves overall security.<a href="#section-7.3-1" class="pilcrow">¶</a></p>
@@ -2772,7 +2771,7 @@ provided with an appropriate inclusion proof.<a href="#section-8.1-2" class="pil
       <h2 id="name-performance-considerations">
 <a href="#section-9" class="section-number selfRef">9. </a><a href="#name-performance-considerations" class="section-name selfRef">Performance Considerations</a>
       </h2>
-<p id="section-9-1">This section contains brief analysis of the performance impacts of the system.<a href="#section-9-1" class="pilcrow">¶</a></p>
+<p id="section-9-1">This section contains brief a analysis of the performance impacts of the system.<a href="#section-9-1" class="pilcrow">¶</a></p>
 <div id="transparency-log-1">
 <section id="section-9.1">
         <h3 id="name-transparency-log-2">
@@ -2949,8 +2948,8 @@ is provided in the encrypted Certificate message the first time that the
 provisional proof is used by the host. Similarly, when the bearer token is
 redeemed (i.e., when the host shows that the provisional proof was correctly
 integrated into the Transparency Log), this information is provided in the
-encrypted Certificate message. As such, assuming that the bearer token is
-generated by the host in a secure way, a passive network
+encrypted Certificate message. As such, if the host generates the bearer token
+in a secure way, a passive network
 observer never sees anything that would identify the certificate shown to the
 client.<a href="#section-10.1-5" class="pilcrow">¶</a></p>
 <p id="section-10.1-6">Each bearer token is additionally associated with a pre-shared key which is

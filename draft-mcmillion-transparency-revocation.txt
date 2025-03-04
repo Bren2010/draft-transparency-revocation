@@ -177,8 +177,8 @@ Table of Contents
       publicly-auditable log of certificates and revocations issued by a
       wide range of Certificate Authorities.
 
-   *Site Operator:*  The individual or organization responsible for the
-      operation and maintenance of a website, as identified by a single
+   *Site Operator:*  The individual or organization responsible for
+      operating and maintaining a website, as identified by a single
       domain name or IP address.
 
    *User Agent:*  A software application, typically but not necessarily
@@ -227,12 +227,11 @@ Table of Contents
    goal of any transparency system is to ensure that data shown to one
    participant is equally visible to any other participant.
    Transparency systems that achieve this by relying solely on stateless
-   verification are more accurately referred to as a "co-signing"
-   schemes.  This is because the security of these systems reduces
-   solely to successful verification of the co-signers' signatures on a
-   claim that some data is properly published, and ultimately to an
-   assumption that the co-signers are not colluding to suppress the
-   data.
+   verification are more accurately referred to as "co-signing" schemes.
+   This is because the security of these systems reduces solely to
+   successful verification of the co-signers' signatures on a claim that
+   some data is properly published, and ultimately to an assumption that
+   the co-signers are not colluding to suppress the data.
 
    In the web PKI, the co-signers in such a system would be a
    Certificate Authority and one or more Transparency Logs.  The diverse
@@ -375,9 +374,9 @@ Table of Contents
    for specific data.  In the context of providing transparency to the
    web PKI, this would allow Site Operators to download only a small
    subset of the data in a Transparency Log and still be assured to have
-   received all certificates that are relevant to them.  As a result of
-   the significantly reduced need for outbound bandwidth, operating such
-   a Transparency Log would cost roughly one million times less than it
+   received all certificates that are relevant to them.  Due to the
+   significantly reduced need for outbound bandwidth, operating such a
+   Transparency Log would cost roughly one million times less than it
    would if Site Operators were required to download the log's entire
    contents.
 
@@ -423,11 +422,11 @@ Table of Contents
 
    Transparency Logs are online services that maintain a tree data
    structure and provide access to it through the endpoints described
-   below.  Transparency Logs are generally only contacted by Site
-   Operators.  Site Operators regularly issue requests to the
-   Transparency Log's endpoints to either obtain fresh inclusion proofs
-   for their certificates or to monitor for mis-issuances affecting
-   their properties.
+   below.  Generally, only Site Operators contact Transparency Logs.
+   Site Operators regularly issue requests to the Transparency Log's
+   endpoints to either obtain fresh inclusion proofs for their
+   certificates or to monitor for mis-issuances affecting their
+   properties.
 
    While a Transparency Log may be operated by a Certificate Authority,
    Transparency Logs SHOULD accept certificates issued by a broad set of
@@ -509,8 +508,8 @@ Table of Contents
    } SubtreeInclusionProof;
 
    The position field contains the index of the leaf for which inclusion
-   is being proven, while the size field contains the total number of
-   leaves in the Certificate Subtree.  The proof in inclusion allows a
+   is being proven.  The size field contains the total number of leaves
+   in the Certificate Subtree.  The proof in inclusion allows a
    recipient to recompute the root hash of the Certificate Subtree,
    given the correct value for the leaf at position.
 
@@ -558,7 +557,7 @@ Table of Contents
      opaque signature_public_key<0..2^16-1>;
 
      uint64 max_ahead;
-     unit64 max_behind;
+     uint64 max_behind;
      optional<uint64> maximum_lifetime;
    } Configuration;
 
@@ -607,9 +606,9 @@ Table of Contents
 
 4.2.1.  Get Tree
 
-   This endpoint is accessed by Site Operators to initialize or update
-   their view of the tree for the purpose of providing inclusion proofs
-   to clients.
+   Site Operators access this endpoint to initialize or update their
+   view of the tree for the purpose of providing inclusion proofs to
+   clients.
 
    GET /get-tree{?tree_size=X}
 
@@ -645,8 +644,8 @@ Table of Contents
 
 4.2.2.  Add Chain
 
-   This endpoint is accessed by Site Operators to produce a proof of
-   inclusion for their certificate chain.
+   Site Operators access this endpoint to produce a proof of inclusion
+   for their certificate chain.
 
    POST /add-chain
 
@@ -703,9 +702,9 @@ Table of Contents
 
 4.2.3.  Refresh Proof
 
-   This endpoint is accessed by Site Operators to refresh a proof of
-   inclusion for their certificate chain, making it acceptable to
-   clients for a longer period of time.
+   Site Operators access this endpoint to refresh a proof of inclusion
+   for their certificate chain, making it acceptable to clients for a
+   longer period of time.
 
    GET /refresh-proof?bearer_token=X&position=Y
 
@@ -731,9 +730,9 @@ Table of Contents
 
 4.2.4.  Get Certificates
 
-   This endpoint is contacted by Site Operators for the purpose of
-   auditing certificates that have been issued for their domain names or
-   IP addresses.
+   Site Operators access this endpoint for the purpose of auditing
+   certificates that have been issued for their domain names or IP
+   addresses.
 
    GET /get-certificates?bearer_token=X&start=Y
 
@@ -757,9 +756,8 @@ Table of Contents
 
 4.2.5.  Add Revocation
 
-   This endpoint is contacted by Site Operators or Certificate
-   Authorities for the purpose of distributing revocations for their
-   certificates.
+   Site Operators or Certificate Authorities access this endpoint for
+   the purpose of distributing revocations for their certificates.
 
    POST /add-revocation
 
@@ -778,8 +776,8 @@ Table of Contents
 
 4.2.6.  Get Revocations
 
-   This endpoint is contacted by Site Operators to audit revocations
-   affecting their certificate chains.
+   Site Operators access this endpoint to audit revocations affecting
+   their certificate chains.
 
    GET /get-revocations?bearer_token=X{&page=Y}
 
@@ -1276,7 +1274,7 @@ Table of Contents
    10*max_behind milliseconds in the past, the client MUST report the
    provisional inclusion proof to a party distinct from the issuing
    Certificate Authority and the operator of the Transparency Log. The
-   client can then delete the associated state at its discretion.
+   client can then delete the associated state at will.
 
    The purpose of reporting provisional inclusion proofs that are unable
    to be resolved is to ensure that there is broader ecosystem awareness
@@ -1356,7 +1354,7 @@ Table of Contents
 7.2.  Server Behavior
 
    To prevent connection failure, it's critical that servers that
-   implement the TLS extension in Section 5 always have a satisfactory
+   implement the TLS extension in Section 5 always have satisfactory
    proof to offer to clients.  Servers MUST implement the automatic
    refreshing of proofs and MUST implement automatic failover between
    multiple trusted Transparency Logs in the event that one is
@@ -1394,7 +1392,7 @@ Table of Contents
    client later advertises the bearer token back, it can be decrypted by
    the server to identify the provisional certificate to respond with
    and to re-compute the pre-shared key for the connection.  This
-   minimizes the operational burden on the server and also effectively
+   minimizes the server operational burden and also effectively
    preserves client privacy.
 
 7.3.  Handling Forks
@@ -1406,7 +1404,7 @@ Table of Contents
    added.  However, enforcing this strictly is incompatible with many of
    the standard best-practices for operating reliable software systems.
    For example, if this property needed to be enforced strictly, it
-   would pointless to back up such a Transparency Log. Restoring from
+   would be pointless to back up such a Transparency Log. Restoring from
    backup would imply some degree of rollback and this would be
    unacceptable.  As such, it is necessary for the protocol to handle
    reasonable violations of these expectations gracefully, and in a way
@@ -1457,7 +1455,7 @@ Table of Contents
 
 9.  Performance Considerations
 
-   This section contains brief analysis of the performance impacts of
+   This section contains brief a analysis of the performance impacts of
    the system.
 
 9.1.  Transparency Log
@@ -1603,9 +1601,9 @@ Table of Contents
    token is redeemed (i.e., when the host shows that the provisional
    proof was correctly integrated into the Transparency Log), this
    information is provided in the encrypted Certificate message.  As
-   such, assuming that the bearer token is generated by the host in a
-   secure way, a passive network observer never sees anything that would
-   identify the certificate shown to the client.
+   such, if the host generates the bearer token in a secure way, a
+   passive network observer never sees anything that would identify the
+   certificate shown to the client.
 
    Each bearer token is additionally associated with a pre-shared key
    which is provided to the TLS key schedule.  This prevents an active
