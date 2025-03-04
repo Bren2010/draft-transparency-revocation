@@ -26,17 +26,19 @@ author:
  -
     fullname: "Brendan McMillion"
     email: "brendanmcmillion@gmail.com"
+ -
+    ins: "D. O'Brien"
+    fullname: "Devon O'Brien"
+    organization: "Google LLC"
+    email: asymmetric@google.com
+ -
+    fullname: "Dennis Jackson"
+    organization: "Mozilla"
+    email: ietf@dennis-jackson.uk
 
 normative:
 
 informative:
-  ct-in-wild:
-    target: https://dl.acm.org/doi/pdf/10.1145/3319535.3345653
-    title: "Certificate Transparency in the Wild: Exploring the Reliability of Monitors"
-    date: 2019-11-06
-    author:
-      - name: Bingyu Li
-
 
 --- abstract
 
@@ -74,7 +76,7 @@ monitoring certificate issuance in CT requires downloading the entire contents
 of all logs, which is several terabytes of data at minimum.
 
 The fundamental purpose for publishing TLS certificates is to allow site operators
-to identify and and revoke those certificates which are mis-issued. However,
+to identify and revoke those certificates which are mis-issued. However,
 revocation systems have historically been plagued by a requirement to "fail
 open". That is, revocation checks would stop being enforced in certain (often,
 easily engineered) scenarios. For example, if the server didn't proactively
@@ -120,22 +122,24 @@ are allowed to assume multiple roles.
 The following baseline requirements for the system are as follows:
 
 1. For a certificate to be mis-issued and not eventually published: two trusted
-   parties must collude to misbehave and all verifiers that observed the
+   parties must collude to misbehave and all User Agents that observed the
    certificate must be stateless.
-2. For a verifier to accept a revoked certificate and this not be eventually
-   detected: one trusted party must misbehave and all verifiers that accepted
+2. For a User Agent to accept a revoked certificate and this not be eventually
+   detected: one trusted party must misbehave and all User Agents that accepted
    the certificate must be stateless.
 3. It must be reasonably efficient for Site Operators to audit all trusted
    Certificate Authorities for mis-issuances affecting their domain names and IP
    addresses.
-4. The system must not have any single points of failure, other than those in
-   the web PKI as it exists today.
+4. It must not be possible for a third-party service's outage to cause an outage
+   for a Site Operator, other than how it could in the web PKI as it exists
+   today.
 5. User Agents must be able to connect to a server without having immediate
    connectivity to third-party services.
 6. The domain names and/or IP addresses of websites visited by a User Agent must not
    be leaked, other than how they are in the web PKI as it exists today.
 7. The system must be reasonable for non-browser User Agents to deploy.
-8. The system must have a reasonable path to scale indefinitely.
+8. The system must have a reasonable path to scale to an indefinite number of
+   Site Operators and User Agents.
 
 These requirements and their main consequences are discussed in more detail in
 the following subsection.
@@ -239,7 +243,8 @@ transparency system as claimed. If certificates may be issued with longer
 lifespans, then a second revocation mechanism for these certificates is
 necessary.
 
-**Transparency Logs must implement the Key Transparency protocol.** As stated at
+**Transparency Logs must implement a protocol similar to Key Transparency
+{{!KEYTRANS=I-D.draft-ietf-keytrans-protocol}}.** As stated at
 the beginning of this section, the goal of any transparency system is to ensure
 that data shown to one participant is equally visible to any other participant.
 In the context of the web PKI, this means that a Site Operator that contacts all
@@ -255,26 +260,32 @@ size of 3 kilobytes. This means that a Site Operator would need to download
 almost 700 gigabytes of certificates to cover a single month of issuance.
 Outbound bandwidth typically costs between 1 to 9 cents per gigabyte, which
 means that providing this data to a single Site Operator would cost the
-Transparency Log between $6 to $60. For any reasonable estimate of the number of
-Site Operators on the internet, this would be an exceptional financial burden.
+Transparency Log between $6 to $60. If even a small percentage of all Site
+Operators on the internet were to do this, it would create an exceptional
+financial and operational burden for the Transparency Log.
 
 In the existing Certificate Transparency ecosystem, because of this exceptional
 cost, Site Operators have overwhelmingly elected not to do this work themselves
 and have instead outsourced it to third-party monitors. Third-party monitors
 represent a problematic break in the security guarantees of Certificate
-Transparency, as there are no enforceable requirements on their behavior. They
-are not audited for correct behavior like Certificate Authorities are, and there
+Transparency as there are no enforceable requirements on their behavior. They
+are not audited for correct behavior like Certificate Authorities are and there
 are no technical mechanisms to prevent misbehavior like a Transparency Log would
-have. This has had the real-world impact of undermining the system's
-transparency guarantees {{ct-in-wild}}.
+have.
 
-Key Transparency {{!I-D.draft-ietf-keytrans-protocol}} augments a Transparency
-Log with additional structure to allow efficient and verifiable searches for
-specific data. This allows Site Operators to download only a small subset of the
-entries of the Transparency Log, but still be guaranteed to have received all
-certificates that are relevant to them. As a result of the significantly reduced
-need for outbound bandwidth, operating such a Transparency Log would cost around
-one million times less than it would otherwise.
+Key Transparency systems are generally distinguished from other transparency
+systems by the fact that they augment a Transparency Log with additional
+structure to allow efficient and verifiable searches for specific data. In the
+context of providing transparency to the web PKI, this would allow Site
+Operators to download only a small subset of the data in a Transparency Log and
+still be assured to have received all certificates that are relevant to them. As
+a result of the significantly reduced need for outbound bandwidth, operating
+such a Transparency Log would cost roughly one million times less than it would
+if Site Operators were required to download the log's entire contents.
+
+While the protocol described in {{KEYTRANS}} could be applied directly, some
+optimizations and simplifications specific to the web PKI are provided in
+{{transparency-log}}.
 
 ## Summary
 
@@ -323,7 +334,7 @@ Site Operators can failover to and fetch fresh inclusion proofs from.
 ## Structure
 
 The data structure maintained by a Transparency Log is identical to the Combined
-Tree described in {{!I-D.draft-ietf-keytrans-protocol}}, with two exceptions:
+Tree described in {{KEYTRANS}}, with two exceptions:
 the search keys that are used to navigate the Prefix Tree, and the
 data committed to by each Prefix Tree leaf node, are different.
 
@@ -336,7 +347,7 @@ it is reduced to the registrable domain ("example.com" instead of
 producing the value which is used to navigate the Prefix Tree. The hash function
 used corresponds to the ciphersuite hash function. No VRF is used, or version
 counter is included in the hash function input, as they would be in
-{{!I-D.draft-ietf-keytrans-protocol}}.
+{{KEYTRANS}}.
 
 Rather than a privacy-preserving commitment, each Prefix Tree leaf contains the
 hash of a `DomainCertificates` structure:
@@ -408,7 +419,7 @@ DomainCertificates structure. This allows recipients to verify that the leaf at
 DomainCertificates structure stored at a given leaf of the Prefix Tree.
 
 Note that this document follows the pattern established in
-{{!I-D.draft-ietf-keytrans-protocol}} of requiring each element of an
+{{KEYTRANS}} of requiring each element of an
 InclusionProof to be a balanced subtree. An InclusionProof may also function as
 a "consistency proof" if the recipient is known to have observed a previous
 version of the tree.
@@ -477,7 +488,7 @@ The `max_ahead` and `max_behind` fields contain the maximum amount of time in
 milliseconds that a tree head may be ahead of or behind the user's local clock
 without being rejected. If the Transparency Log has chosen to define a maximum
 lifetime for log entries, per Section 5.2 of
-{{!I-D.draft-ietf-keytrans-protocol}}, this duration in milliseconds is stored
+{{KEYTRANS}}, this duration in milliseconds is stored
 in the `maximum_lifetime` field.
 
 When the TreeHeadTBS structure is for a `provisional` tree head type,
@@ -520,13 +531,12 @@ head published by the Transparency Log. The `combined` field contains the
 following:
 
 - The output of updating the view of the tree from `tree_size` (if provided) to
-  `tree_head.tree_size` (Section 10.3.1 of
-  {{!I-D.draft-ietf-keytrans-protocol}}).
+  `tree_head.tree_size` (Section 10.3.1 of {{KEYTRANS}}).
 - The timestamps of all log entries that are more recent than `tree_size` and
   have timestamps less than or equal to `10*max_behind`. These timestamps are
   provided in left-to-right order. However, note that some of them may be
   omitted if they are duplicates with the previous bullet, as explained in
-  Section 10.3 of {{!I-D.draft-ietf-keytrans-protocol}}.
+  Section 10.3 of {{KEYTRANS}}.
 
 If `tree_size` is provided, the proof in `combined.inclusion` is additionally a
 consistency proof.
@@ -882,7 +892,7 @@ follows:
    advertised by the client.
 2. Verify `combined` as executing the following proofs in this order:
    1. Updating the view of the tree (Section 10.3.1 of
-      {{!I-D.draft-ietf-keytrans-protocol}}). Note that verifying this proof step
+      {{KEYTRANS}}). Note that verifying this proof step
       also verifies that the rightmost log entry's timestamp is within the bounds
       set by `max_ahead` and `max_behind`.
    2. If a provisional tree head was advertised by the client and the subsequent
@@ -942,7 +952,7 @@ These proofs are verified as follows:
    advertised tree head.
 2. Verify `combined` as executing the following proofs in this order:
    1. Updating the view of the tree (Section 10.3.1 of
-      {{!I-D.draft-ietf-keytrans-protocol}}). Note that verifying this proof step
+      {{KEYTRANS}}). Note that verifying this proof step
       also verifies that the rightmost log entry's timestamp is within the bounds
       set by `max_ahead` and `max_behind`.
    2. If a provisional tree head was advertised by the client and the subsequent
