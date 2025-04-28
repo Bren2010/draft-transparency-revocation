@@ -40,6 +40,26 @@ normative:
 
 informative:
 
+  CRLSets:
+    title: Chromium Security > CRLSets
+    target: https://www.chromium.org/Home/chromium-security/crlsets/
+
+  CRLite:
+    title: "Introducing CRLite: All of the Web PKI’s revocations, compressed"
+    target: https://blog.mozilla.org/security/2020/01/09/crlite-part-1-all-web-pki-revocations-compressed/
+    date: 2020-01-09
+    author:
+      - name: J.C. Jones
+      - org: Mozilla
+
+  Clubcards:
+    title: "Clubcards for the WebPKI: smaller certificate revocation tests in theory and practice"
+    target: https://research.mozilla.org/files/2025/04/clubcards_for_the_webpki.pdf
+    date: 2025-04-01
+    author:
+      - name: John M. Schanck
+      - org: Mozilla
+
 --- abstract
 
 This document describes reliable mechanisms for the publication and revocation
@@ -75,16 +95,19 @@ internet, which consumes a significant amount of outbound bandwidth. Similarly,
 monitoring certificate issuance in CT requires downloading the entire contents
 of all logs, which is several terabytes of data at minimum.
 
-The fundamental purpose for publishing TLS certificates is to allow site operators
-to identify and revoke those certificates which are mis-issued. However,
-revocation systems have historically been plagued by a requirement to "fail
-open". That is, revocation checks would stop being enforced in certain (often,
-easily engineered) scenarios. For example, if the server didn't proactively
-offer proof of non-revocation or if a third-party service was inaccessible for
-too long, this might cause revocation checks to be disabled. One promising
-exception to this general principle, OCSP Must-Staple {{?RFC7633}}, has
-unfortunately been the victim of waning support for OCSP by Certificate
-Authorities.
+One of the primary motivations for publishing TLS certificates is to allow site
+operators to identify and revoke those certificates which are mis-issued.
+However, revocation systems have historically been plagued by a requirement to
+"fail open". That is, revocation checks would stop being enforced in certain
+(often, easily engineered) scenarios. For example, clients using OCSP must
+typically fail open in the event the OCSP server is unreachable. Alternatives
+like OCSP Must-Staple {{?RFC7633}} were designed to close this loophole, but
+have been stymied by lack of support in popular web servers.
+
+More recent alternatives like CRLSets {{CRLSets}}, CRLite {{CRLite}} and
+Clubcards {{Clubcards}} provide fail-closed revocation checks to clients, but
+are unstandardized, rely on trusting the server operator (who is typically a
+client vendor, rather than a CA) and offer limited transparency properties.
 
 This motivates a need for a new system of publishing certificates that's
 resistant to collusion and dramatically more efficient to operate, and a need
