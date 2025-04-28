@@ -1343,7 +1343,7 @@ internet, which consumes a significant amount of outbound bandwidth. Similarly,
 monitoring certificate issuance in CT requires downloading the entire contents
 of all logs, which is several terabytes of data at minimum. The total bandwidth
 costs of the CT ecosystem scale linearly in the number of certificates issued,
-the number of logs active and the number of interested monitors.<a href="#section-1-3" class="pilcrow">¶</a></p>
+the number of logs active, and the number of interested monitors.<a href="#section-1-3" class="pilcrow">¶</a></p>
 <p id="section-1-4">One of the primary motivations for publishing TLS certificates is to allow site
 operators to identify and revoke those certificates which are mis-issued.
 However, revocation systems have historically been plagued by a requirement to
@@ -1352,7 +1352,7 @@ However, revocation systems have historically been plagued by a requirement to
 typically fail open in the event the OCSP server is unreachable. Alternatives
 like OCSP Must-Staple <span>[<a href="#RFC7633" class="cite xref">RFC7633</a>]</span> were designed to close this loophole, but
 have been stymied by lack of support in popular web servers.<a href="#section-1-4" class="pilcrow">¶</a></p>
-<p id="section-1-5">More recent alternatives like CRLSets <span>[<a href="#CRLSets" class="cite xref">CRLSets</a>]</span>, CRLite <span>[<a href="#CRLite" class="cite xref">CRLite</a>]</span> and
+<p id="section-1-5">More recent alternatives like CRLSets <span>[<a href="#CRLSets" class="cite xref">CRLSets</a>]</span>, CRLite <span>[<a href="#CRLite" class="cite xref">CRLite</a>]</span>, and
 Clubcards <span>[<a href="#Clubcards" class="cite xref">Clubcards</a>]</span> provide fail-closed revocation checks to clients, but
 are unstandardized, rely on trusting the server operator (who is typically a
 client vendor, rather than a CA) and offer limited transparency properties.<a href="#section-1-5" class="pilcrow">¶</a></p>
@@ -1361,8 +1361,8 @@ resistant to collusion and dramatically more efficient to operate, and a need
 for a new system of revoking certificates that can be consistently enforced.<a href="#section-1-6" class="pilcrow">¶</a></p>
 <p id="section-1-7">Since the initial deployment of Certificate Transparency in 2013, there has been
 a considerable body of research published on transparency systems. In recent
-years, key transparency systems have been deployed by Apple <span>[<a href="#AppleKT" class="cite xref">AppleKT</a>]</span>, Meta
-<span>[<a href="#MetaKT" class="cite xref">MetaKT</a>]</span> and ProtonMail <span>[<a href="#ProtonKT" class="cite xref">ProtonKT</a>]</span>, These systems not only provide stronger
+years, Key Transparency systems have been deployed by Apple <span>[<a href="#AppleKT" class="cite xref">AppleKT</a>]</span>, Meta
+<span>[<a href="#MetaKT" class="cite xref">MetaKT</a>]</span>, and ProtonMail <span>[<a href="#ProtonKT" class="cite xref">ProtonKT</a>]</span>. These systems not only provide stronger
 security properties, but also support transparent revocation, and also scale with
 less bandwidth costs.<a href="#section-1-7" class="pilcrow">¶</a></p>
 <p id="section-1-8">Key Transparency is being standardized in the KeyTrans IETF WG <span>[<a href="#KeyTransWG" class="cite xref">KeyTransWG</a>]</span>. This
