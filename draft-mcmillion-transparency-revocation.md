@@ -60,6 +60,30 @@ informative:
       - name: John M. Schanck
       - org: Mozilla
 
+  ProtonKT:
+    title: "What is Key Transparency?"
+    target: https://proton.me/support/key-transparency
+    author:
+      - org: Proton
+
+  AppleKT:
+    title: "Advancing iMessage security: iMessage Contact Key Verification"
+    target: https://security.apple.com/blog/imessage-contact-key-verification/
+    date: 2023-10-27
+    author:
+      - org: Apple
+
+  MetaKT:
+    title: Deploying key transparency at WhatsApp
+    target: https://engineering.fb.com/2023/04/13/security/whatsapp-key-transparency/
+    date: 2023-04-13
+    author:
+      - org: Meta
+
+  KeyTransWG:
+    title: Key Transparency (keytrans) Working Group
+    target: https://datatracker.ietf.org/wg/keytrans/about/
+
 --- abstract
 
 This document describes reliable mechanisms for the publication and revocation
@@ -93,7 +117,9 @@ It is also becoming far too expensive to both operate a CT log and to monitor
 CT logs. Logs are required to serve their entire contents to anyone on the
 internet, which consumes a significant amount of outbound bandwidth. Similarly,
 monitoring certificate issuance in CT requires downloading the entire contents
-of all logs, which is several terabytes of data at minimum.
+of all logs, which is several terabytes of data at minimum. The total bandwidth
+costs of the CT ecosystem scale linearly in the number of certificates issued,
+the number of logs active and the number of interested monitors.
 
 One of the primary motivations for publishing TLS certificates is to allow site
 operators to identify and revoke those certificates which are mis-issued.
@@ -113,6 +139,17 @@ This motivates a need for a new system of publishing certificates that's
 resistant to collusion and dramatically more efficient to operate, and a need
 for a new system of revoking certificates that can be consistently enforced.
 
+Since the initial deployment of Certificate Transparency in 2013, there has been
+a considerable body of research published on transparency systems. In recent
+years, key transparency systems have been deployed by Apple {{AppleKT}}, Meta
+{{MetaKT}} and ProtonMail {{ProtonKT}}, These systems not only provide stronger
+security properties, but also support transparent revocation, and also scale with
+less bandwidth costs.
+
+Key Transparency is being standardized in the KeyTrans IETF WG {{KeyTransWG}}. This
+document describes how a similar design as the one being considered in the
+KeyTrans WG could be applied to TLS in order to provide stronger security
+properties whilst also reducing the TLS handshake size.
 
 # Conventions and Definitions
 
