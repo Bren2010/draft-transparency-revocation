@@ -123,7 +123,7 @@ internet, which consumes a significant amount of outbound bandwidth. Similarly,
 monitoring certificate issuance in CT requires downloading the entire contents
 of all logs, which is several terabytes of data at minimum. The total bandwidth
 costs of the CT ecosystem scale linearly in the number of certificates issued,
-the number of logs active and the number of interested monitors.
+the number of logs active, and the number of interested monitors.
 
 One of the primary motivations for publishing TLS certificates is to allow site
 operators to identify and revoke those certificates which are mis-issued.
@@ -134,7 +134,7 @@ typically fail open in the event the OCSP server is unreachable. Alternatives
 like OCSP Must-Staple {{?RFC7633}} were designed to close this loophole, but
 have been stymied by lack of support in popular web servers.
 
-More recent alternatives like CRLSets {{CRLSets}}, CRLite {{CRLite}} and
+More recent alternatives like CRLSets {{CRLSets}}, CRLite {{CRLite}}, and
 Clubcards {{Clubcards}} provide fail-closed revocation checks to clients, but
 are unstandardized, rely on trusting the server operator (who is typically a
 client vendor, rather than a CA) and offer limited transparency properties.
@@ -145,8 +145,8 @@ for a new system of revoking certificates that can be consistently enforced.
 
 Since the initial deployment of Certificate Transparency in 2013, there has been
 a considerable body of research published on transparency systems. In recent
-years, key transparency systems have been deployed by Apple {{AppleKT}}, Meta
-{{MetaKT}} and ProtonMail {{ProtonKT}}, These systems not only provide stronger
+years, Key Transparency systems have been deployed by Apple {{AppleKT}}, Meta
+{{MetaKT}}, and ProtonMail {{ProtonKT}}. These systems not only provide stronger
 security properties, but also support transparent revocation, and also scale with
 less bandwidth costs.
 
