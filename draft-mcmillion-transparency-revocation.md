@@ -84,6 +84,10 @@ informative:
     title: Key Transparency (keytrans) Working Group
     target: https://datatracker.ietf.org/wg/keytrans/about/
 
+  CertLifetimes:
+    title:  "SC-081v3: Introduce Schedule of Reducing Validity and Data Reuse Periods"
+    target: https://groups.google.com/a/groups.cabforum.org/g/servercert-wg/c/bvWh5RN6tYI
+
 --- abstract
 
 This document describes reliable mechanisms for the publication and revocation
@@ -302,6 +306,15 @@ short-lived, and issuance is transparent, then revocation is provided by the
 transparency system as claimed. If certificates may be issued with longer
 lifespans, then a second revocation mechanism for these certificates is
 necessary.
+
+All certificate lifetimes are already planned to fall from 398 days today to 47
+days in 2029 {{CertLifetimes}}, bringing a number of security and agility
+benefits to the ecosystem. However, 47 days is still much longer than is
+tolerable without effective revocation. Although a further reduction to 7 days
+or 24 hours is possible in theory, each halving in lifetime results in doubling
+the issuance load for CAs, CT logs and monitors. The net effect would be a ~56x
+increase in issuance rate in order to maintain the same size PKI as we have
+today.
 
 **Transparency Logs must implement a protocol similar to Key Transparency
 {{!KEYTRANS=I-D.draft-ietf-keytrans-protocol}}.** As stated at
