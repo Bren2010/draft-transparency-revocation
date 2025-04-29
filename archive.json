@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2025-04-27T00:24:31.594507+00:00",
+  "timestamp": "2025-04-29T00:22:57.013100+00:00",
   "repo": "Bren2010/draft-transparency-revocation",
   "labels": [
     {
@@ -49,6 +49,145 @@
       "color": "ffffff"
     }
   ],
-  "issues": [],
-  "pulls": []
+  "issues": [
+    {
+      "number": 2,
+      "id": "I_kwDONGZggs60Y0sR",
+      "title": "Downgrade Prevention",
+      "url": "https://github.com/Bren2010/draft-transparency-revocation/issues/2",
+      "state": "OPEN",
+      "author": "dennisjackson",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "The Poison Extension described in Section 8.1 and analyzed in 10.2 provides a limited form of downgrade protection. This protection relies on security of the legacy CT + revocation system and the propensity of each site operator to monitor for mis-issued certificates via the legacy CT ecosystem and have them revoked. \n\nIt is also limited to providing downgrade detection, rather than prevention, since there is necessarily a lag between when an unpoisoned certificate is used, when it is detected and when it is revoked, keeping in mind that such certificates fall outside the transparency and revocation system described in this draft. \n\nAs a contrast, using a HSTS-like mechanism where clients are preloaded with a list of sites supporting the new mechanism, or learn which sites want to enforce the new mechanism via a HTTP header, TLS extension field or certificate field, provides the stronger prevention property and does not depend on site operators or the legacy CT and revocation systems. \n\nHSTS mechanisms are not without their complications, but as this design already envisages keeping a substantial amount of state on clients including per-host PSKs in certain circumstances, the additional complexity seems low.",
+      "createdAt": "2025-04-28T22:30:54Z",
+      "updatedAt": "2025-04-28T22:30:54Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 3,
+      "id": "I_kwDONGZggs60Y5oW",
+      "title": "Document flow and reading order",
+      "url": "https://github.com/Bren2010/draft-transparency-revocation/issues/3",
+      "state": "OPEN",
+      "author": "dennisjackson",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "The current document describes the transparency log and its structure first which involves shelling out to the KT drafts and getting the reader to deal with a lot of complexity up front. \n\nIt might be easier on the reader to reverse the current flow and proceed by entity. E.g. \n\n- Client Operation (connecting to a server, storing state)\n- Server Operation (getting a cert, serving a client\n- Log Operation (endpoints etc) \n\nI'm not sure how much to front-load or late-load the log structure. Perhaps having a short up front bit which introduces the main idea (e.g. the operations supported) and a later bit which actually specifies it? That implies leaving some of the operational bits abstract early on, but there's still plenty of complexity to dispatch up front (e.g. TLS Handshake flow). ",
+      "createdAt": "2025-04-28T22:41:21Z",
+      "updatedAt": "2025-04-28T22:41:21Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 4,
+      "id": "I_kwDONGZggs60Y9Zb",
+      "title": "Roles of logs vs CAs (and ACME)",
+      "url": "https://github.com/Bren2010/draft-transparency-revocation/issues/4",
+      "state": "OPEN",
+      "author": "dennisjackson",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "The current draft envisages that website operators interact directly with log operators, including PoP of the signing key of their leaf certificate and the use of a bearer token to authenticate future interactions. This is quite different from the existing WebPKI architecture, where websites interact with their CA and typically use an existing standard like ACME to do it.\n\nCondensing CAs and log operators into the same role, which implies that \"logging is issuance\" has a number of upsides: \n - Less complexity for website operators. \n - Certificates naturally live in a single log\n - The entity issuing certificates is also responsible for the bandwidth around their monitoring. \n - Logs don't need to grow at the rate of the WebPKI, they can instead grow at their own rate (e.g. throttling their own issuance to what their log can keep up with).\n\nBy itself, this would violate the current design goal of needing at least two colluding parties in order to defeat the transparency property, so would motivate the need for independent witnesses. ",
+      "createdAt": "2025-04-28T22:51:26Z",
+      "updatedAt": "2025-04-28T22:51:26Z",
+      "closedAt": null,
+      "comments": []
+    },
+    {
+      "number": 5,
+      "id": "I_kwDONGZggs60Y_b1",
+      "title": "Delayed Issuance Optimization",
+      "url": "https://github.com/Bren2010/draft-transparency-revocation/issues/5",
+      "state": "OPEN",
+      "author": "dennisjackson",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "A large fraction of WebPKI issuances are renewals of existing certificates, typically carried out well in advance of the actual expiry of the certificate. This can be leveraged to optimize server bandwidth further by obtaining a renewed certificate in advance, then waiting a period of time before switching to serving connections with it. \n\nThis delay improves the probability that clients have already seen the necessary tree heads, especially if there's an alternative mechanism for distributing tree heads to some clients. ",
+      "createdAt": "2025-04-28T22:56:24Z",
+      "updatedAt": "2025-04-28T22:56:24Z",
+      "closedAt": null,
+      "comments": []
+    }
+  ],
+  "pulls": [
+    {
+      "number": 1,
+      "id": "PR_kwDONGZggs6UMhsf",
+      "title": "Front matter",
+      "url": "https://github.com/Bren2010/draft-transparency-revocation/pull/1",
+      "state": "OPEN",
+      "author": "dennisjackson",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "Sharpens the discussion around revocation and shorter lifetimes. Teases KT in the intro. ",
+      "createdAt": "2025-04-28T16:13:14Z",
+      "updatedAt": "2025-04-28T23:22:08Z",
+      "baseRepository": "Bren2010/draft-transparency-revocation",
+      "baseRefName": "main",
+      "baseRefOid": "ad39b6aa235c16796278435963b64b91ada61c0b",
+      "headRepository": "Bren2010/draft-transparency-revocation",
+      "headRefName": "intro",
+      "headRefOid": "e11bf0d4798199c7e70299e5716cdf03db815c78",
+      "closedAt": null,
+      "mergedAt": null,
+      "mergedBy": null,
+      "mergeCommit": null,
+      "comments": [
+        {
+          "author": "dennisjackson",
+          "authorAssociation": "COLLABORATOR",
+          "body": "(I think Github got rid of draft PRs for non-enterprise users, but treat this as a draft for now.)",
+          "createdAt": "2025-04-28T16:22:00Z",
+          "updatedAt": "2025-04-28T16:22:00Z"
+        }
+      ],
+      "reviews": [
+        {
+          "id": "PRR_kwDONGZggs6m9E_c",
+          "commit": {
+            "abbreviatedOid": "06deb87"
+          },
+          "author": "Bren2010",
+          "authorAssociation": "OWNER",
+          "state": "APPROVED",
+          "body": "",
+          "createdAt": "2025-04-28T21:32:51Z",
+          "updatedAt": "2025-04-28T21:37:14Z",
+          "comments": [
+            {
+              "originalPosition": 84,
+              "body": "```suggestion\r\nMore recent alternatives like CRLSets {{CRLSets}}, CRLite {{CRLite}}, and\r\n```",
+              "createdAt": "2025-04-28T21:32:52Z",
+              "updatedAt": "2025-04-28T21:37:14Z"
+            },
+            {
+              "originalPosition": 73,
+              "body": "```suggestion\r\nthe number of logs active, and the number of interested monitors.\r\n```",
+              "createdAt": "2025-04-28T21:32:59Z",
+              "updatedAt": "2025-04-28T21:37:14Z"
+            },
+            {
+              "originalPosition": 95,
+              "body": "```suggestion\r\nyears, Key Transparency systems have been deployed by Apple {{AppleKT}}, Meta\r\n```",
+              "createdAt": "2025-04-28T21:33:47Z",
+              "updatedAt": "2025-04-28T21:37:14Z"
+            },
+            {
+              "originalPosition": 96,
+              "body": "```suggestion\r\n{{MetaKT}}, and ProtonMail {{ProtonKT}}. These systems not only provide stronger\r\n```",
+              "createdAt": "2025-04-28T21:34:03Z",
+              "updatedAt": "2025-04-28T21:37:14Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
