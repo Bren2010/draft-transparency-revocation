@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2025-04-29T00:22:57.013100+00:00",
+  "timestamp": "2025-05-01T00:25:46.917995+00:00",
   "repo": "Bren2010/draft-transparency-revocation",
   "labels": [
     {
@@ -62,9 +62,24 @@
       "labels": [],
       "body": "The Poison Extension described in Section 8.1 and analyzed in 10.2 provides a limited form of downgrade protection. This protection relies on security of the legacy CT + revocation system and the propensity of each site operator to monitor for mis-issued certificates via the legacy CT ecosystem and have them revoked. \n\nIt is also limited to providing downgrade detection, rather than prevention, since there is necessarily a lag between when an unpoisoned certificate is used, when it is detected and when it is revoked, keeping in mind that such certificates fall outside the transparency and revocation system described in this draft. \n\nAs a contrast, using a HSTS-like mechanism where clients are preloaded with a list of sites supporting the new mechanism, or learn which sites want to enforce the new mechanism via a HTTP header, TLS extension field or certificate field, provides the stronger prevention property and does not depend on site operators or the legacy CT and revocation systems. \n\nHSTS mechanisms are not without their complications, but as this design already envisages keeping a substantial amount of state on clients including per-host PSKs in certain circumstances, the additional complexity seems low.",
       "createdAt": "2025-04-28T22:30:54Z",
-      "updatedAt": "2025-04-28T22:30:54Z",
+      "updatedAt": "2025-04-30T12:56:53Z",
       "closedAt": null,
-      "comments": []
+      "comments": [
+        {
+          "author": "Bren2010",
+          "authorAssociation": "OWNER",
+          "body": "In my conversations with Devon, he's expressed very strong opposition to \"another giant list of sites\". Also keep in mind: the legacy CT checks are only for protecting against malicious CAs, which is not the main concern with downgrades. The main concern is preventing an attacker from taking a revoked compromised certificate and avoiding revocation checks by using a downgraded protocol.",
+          "createdAt": "2025-04-29T02:46:53Z",
+          "updatedAt": "2025-04-29T02:47:35Z"
+        },
+        {
+          "author": "dennisjackson",
+          "authorAssociation": "COLLABORATOR",
+          "body": "It's important to separate HSTS from HSTS-preload. The latter requires a list of websites, the former does not. \n\nI think the case for including a HSTS-like mechanism is rather strong, since we're storing a bunch of state anyway. Supporting a HSTS-preload mechanism is a much more nuanced decision, but it is also one that individual user agents can take for themselves. ",
+          "createdAt": "2025-04-30T12:56:52Z",
+          "updatedAt": "2025-04-30T12:56:52Z"
+        }
+      ]
     },
     {
       "number": 3,
@@ -94,9 +109,17 @@
       "labels": [],
       "body": "The current draft envisages that website operators interact directly with log operators, including PoP of the signing key of their leaf certificate and the use of a bearer token to authenticate future interactions. This is quite different from the existing WebPKI architecture, where websites interact with their CA and typically use an existing standard like ACME to do it.\n\nCondensing CAs and log operators into the same role, which implies that \"logging is issuance\" has a number of upsides: \n - Less complexity for website operators. \n - Certificates naturally live in a single log\n - The entity issuing certificates is also responsible for the bandwidth around their monitoring. \n - Logs don't need to grow at the rate of the WebPKI, they can instead grow at their own rate (e.g. throttling their own issuance to what their log can keep up with).\n\nBy itself, this would violate the current design goal of needing at least two colluding parties in order to defeat the transparency property, so would motivate the need for independent witnesses. ",
       "createdAt": "2025-04-28T22:51:26Z",
-      "updatedAt": "2025-04-28T22:51:26Z",
+      "updatedAt": "2025-04-29T02:54:23Z",
       "closedAt": null,
-      "comments": []
+      "comments": [
+        {
+          "author": "Bren2010",
+          "authorAssociation": "OWNER",
+          "body": "The purpose of separating CAs and logs was to allow site operators to refresh their inclusion (and revocation) proofs much more frequently than they can now. If your certificate can only be logged by a single party, then revocation can only be enforced as quickly as the longest conceivable outage of that single party (typically assumed to be 7 days). With separate CAs and logs, we can do 24 hour or faster revocation because if one log is down then you can fail over to another.",
+          "createdAt": "2025-04-29T02:53:30Z",
+          "updatedAt": "2025-04-29T02:54:23Z"
+        }
+      ]
     },
     {
       "number": 5,
@@ -110,9 +133,24 @@
       "labels": [],
       "body": "A large fraction of WebPKI issuances are renewals of existing certificates, typically carried out well in advance of the actual expiry of the certificate. This can be leveraged to optimize server bandwidth further by obtaining a renewed certificate in advance, then waiting a period of time before switching to serving connections with it. \n\nThis delay improves the probability that clients have already seen the necessary tree heads, especially if there's an alternative mechanism for distributing tree heads to some clients. ",
       "createdAt": "2025-04-28T22:56:24Z",
-      "updatedAt": "2025-04-28T22:56:24Z",
+      "updatedAt": "2025-04-30T12:50:10Z",
       "closedAt": null,
-      "comments": []
+      "comments": [
+        {
+          "author": "Bren2010",
+          "authorAssociation": "OWNER",
+          "body": "I agree with this but the protocol already supports it as written. Is there a change to the text that you had in mind?",
+          "createdAt": "2025-04-29T02:55:31Z",
+          "updatedAt": "2025-04-29T02:55:31Z"
+        },
+        {
+          "author": "dennisjackson",
+          "authorAssociation": "COLLABORATOR",
+          "body": "My thought was to explain this explicitly in Performance Considerations. Should be a fairly small PR but I didn't want it to get lost. ",
+          "createdAt": "2025-04-30T12:50:10Z",
+          "updatedAt": "2025-04-30T12:50:10Z"
+        }
+      ]
     }
   ],
   "pulls": [
