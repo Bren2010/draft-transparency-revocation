@@ -18,20 +18,20 @@ websites in a highly efficient way without relying on third-party services.
 Third, it provides a high degree of operational redundancy to minimize the risk
 of cascading outages. 
     " name="description">
-<meta content="xml2rfc 3.28.0" name="generator">
+<meta content="xml2rfc 3.28.1" name="generator">
 <meta content="next generation" name="keyword">
 <meta content="unicorn" name="keyword">
 <meta content="sparkling distributed ledger" name="keyword">
 <meta content="draft-mcmillion-transparency-revocation-latest" name="ietf.draft">
 <!-- Generator version information:
-  xml2rfc 3.28.0
-    Python 3.12.9
+  xml2rfc 3.28.1
+    Python 3.12.10
     ConfigArgParse 1.7
     google-i18n-address 3.1.1
     intervaltree 3.1.0
-    Jinja2 3.1.5
+    Jinja2 3.1.6
     lxml 5.3.0
-    platformdirs 4.3.6
+    platformdirs 4.3.7
     pycountry 24.6.1
     PyYAML 6.0.2
     requests 2.32.3
@@ -1055,11 +1055,11 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <thead><tr>
 <td class="left">Internet-Draft</td>
 <td class="center">Reliable Transparency and Revocation Mec</td>
-<td class="right">March 2025</td>
+<td class="right">May 2025</td>
 </tr></thead>
 <tfoot><tr>
 <td class="left">McMillion, et al.</td>
-<td class="center">Expires 5 September 2025</td>
+<td class="center">Expires 10 November 2025</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1072,12 +1072,12 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <dd class="internet-draft">draft-mcmillion-transparency-revocation-latest</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2025-03-04" class="published">4 March 2025</time>
+<time datetime="2025-05-09" class="published">9 May 2025</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Informational</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2025-09-05">5 September 2025</time></dd>
+<dd class="expires"><time datetime="2025-11-10">10 November 2025</time></dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
 <div class="author">
@@ -1136,7 +1136,7 @@ of cascading outages.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 5 September 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 10 November 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1341,20 +1341,34 @@ reasoning about the possibility of collusion even more tricky.<a href="#section-
 CT logs. Logs are required to serve their entire contents to anyone on the
 internet, which consumes a significant amount of outbound bandwidth. Similarly,
 monitoring certificate issuance in CT requires downloading the entire contents
-of all logs, which is several terabytes of data at minimum.<a href="#section-1-3" class="pilcrow">¶</a></p>
-<p id="section-1-4">The fundamental purpose for publishing TLS certificates is to allow site operators
-to identify and revoke those certificates which are mis-issued. However,
-revocation systems have historically been plagued by a requirement to "fail
-open". That is, revocation checks would stop being enforced in certain (often,
-easily engineered) scenarios. For example, if the server didn't proactively
-offer proof of non-revocation or if a third-party service was inaccessible for
-too long, this might cause revocation checks to be disabled. One promising
-exception to this general principle, OCSP Must-Staple <span>[<a href="#RFC7633" class="cite xref">RFC7633</a>]</span>, has
-unfortunately been the victim of waning support for OCSP by Certificate
-Authorities.<a href="#section-1-4" class="pilcrow">¶</a></p>
-<p id="section-1-5">This motivates a need for a new system of publishing certificates that's
+of all logs, which is several terabytes of data at minimum. The total bandwidth
+costs of the CT ecosystem scale linearly in the number of certificates issued,
+the number of logs active, and the number of interested monitors.<a href="#section-1-3" class="pilcrow">¶</a></p>
+<p id="section-1-4">One of the primary motivations for publishing TLS certificates is to allow site
+operators to identify and revoke those certificates which are mis-issued.
+However, revocation systems have historically been plagued by a requirement to
+"fail open". That is, revocation checks would stop being enforced in certain
+(often, easily engineered) scenarios. For example, clients using OCSP must
+typically fail open in the event the OCSP server is unreachable. Alternatives
+like OCSP Must-Staple <span>[<a href="#RFC7633" class="cite xref">RFC7633</a>]</span> were designed to close this loophole, but
+have been stymied by lack of support in popular web servers.<a href="#section-1-4" class="pilcrow">¶</a></p>
+<p id="section-1-5">More recent alternatives like CRLSets <span>[<a href="#CRLSets" class="cite xref">CRLSets</a>]</span>, CRLite <span>[<a href="#CRLite" class="cite xref">CRLite</a>]</span>, and
+Clubcards <span>[<a href="#Clubcards" class="cite xref">Clubcards</a>]</span> provide fail-closed revocation checks to clients, but
+are unstandardized, rely on trusting the server operator (who is typically a
+client vendor, rather than a CA) and offer limited transparency properties.<a href="#section-1-5" class="pilcrow">¶</a></p>
+<p id="section-1-6">This motivates a need for a new system of publishing certificates that's
 resistant to collusion and dramatically more efficient to operate, and a need
-for a new system of revoking certificates that can be consistently enforced.<a href="#section-1-5" class="pilcrow">¶</a></p>
+for a new system of revoking certificates that can be consistently enforced.<a href="#section-1-6" class="pilcrow">¶</a></p>
+<p id="section-1-7">Since the initial deployment of Certificate Transparency in 2013, there has been
+a considerable body of research published on transparency systems. In recent
+years, Key Transparency systems have been deployed by Apple <span>[<a href="#AppleKT" class="cite xref">AppleKT</a>]</span>, Meta
+<span>[<a href="#MetaKT" class="cite xref">MetaKT</a>]</span>, and ProtonMail <span>[<a href="#ProtonKT" class="cite xref">ProtonKT</a>]</span>. These systems not only provide stronger
+security properties, but also support transparent revocation, and also scale with
+less bandwidth costs.<a href="#section-1-7" class="pilcrow">¶</a></p>
+<p id="section-1-8">Key Transparency is being standardized in the KeyTrans IETF WG <span>[<a href="#KeyTransWG" class="cite xref">KeyTransWG</a>]</span>. This
+document describes how a similar design as the one being considered in the
+KeyTrans WG could be applied to TLS in order to provide stronger security
+properties whilst also reducing the TLS handshake size.<a href="#section-1-8" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="conventions-and-definitions">
@@ -1539,15 +1553,23 @@ short-lived, and issuance is transparent, then revocation is provided by the
 transparency system as claimed. If certificates may be issued with longer
 lifespans, then a second revocation mechanism for these certificates is
 necessary.<a href="#section-3.2-11" class="pilcrow">¶</a></p>
-<p id="section-3.2-12"><strong>Transparency Logs must implement a protocol similar to Key Transparency
+<p id="section-3.2-12">All certificate lifetimes are already planned to fall from 398 days today to 47
+days in 2029 <span>[<a href="#CertLifetimes" class="cite xref">CertLifetimes</a>]</span>, bringing a number of security and agility
+benefits to the ecosystem. However, 47 days is still much longer than is
+tolerable without effective revocation. Although a further reduction to 7 days
+or 24 hours is possible in theory, each halving in lifetime results in doubling
+the issuance load for CAs, CT logs and monitors. The net effect would be a ~56x
+increase in issuance rate in order to maintain the same size PKI as we have
+today.<a href="#section-3.2-12" class="pilcrow">¶</a></p>
+<p id="section-3.2-13"><strong>Transparency Logs must implement a protocol similar to Key Transparency
 <span>[<a href="#KEYTRANS" class="cite xref">KEYTRANS</a>]</span>.</strong> As stated at
 the beginning of this section, the goal of any transparency system is to ensure
 that data shown to one participant is equally visible to any other participant.
 In the context of the web PKI, this means that a Site Operator that contacts all
 trusted Transparency Logs should come away with an exhaustive knowledge of all
 certificates that a client might be presented with when connecting to their
-servers.<a href="#section-3.2-12" class="pilcrow">¶</a></p>
-<p id="section-3.2-13">Most transparency systems require downloading the entirety of the log's contents
+servers.<a href="#section-3.2-13" class="pilcrow">¶</a></p>
+<p id="section-3.2-14">Most transparency systems require downloading the entirety of the log's contents
 to ensure that all potentially relevant entries are found. This quickly becomes
 prohibitively expensive for all parties, violating requirements 3 and 8.
 Currently roughly 7.5 million certificates are issued per day, with an average
@@ -1557,16 +1579,16 @@ Outbound bandwidth typically costs between 1 to 9 cents per gigabyte, which
 means that providing this data to a single Site Operator would cost the
 Transparency Log between $6 to $60. If even a small percentage of all Site
 Operators on the internet were to do this, it would create an exceptional
-financial and operational burden for the Transparency Log.<a href="#section-3.2-13" class="pilcrow">¶</a></p>
-<p id="section-3.2-14">In the existing Certificate Transparency ecosystem, because of this exceptional
+financial and operational burden for the Transparency Log.<a href="#section-3.2-14" class="pilcrow">¶</a></p>
+<p id="section-3.2-15">In the existing Certificate Transparency ecosystem, because of this exceptional
 cost, Site Operators have overwhelmingly elected not to do this work themselves
 and have instead outsourced it to third-party monitors. Third-party monitors
 represent a problematic break in the security guarantees of Certificate
 Transparency as there are no enforceable requirements on their behavior. They
 are not audited for correct behavior like Certificate Authorities are and there
 are no technical mechanisms to prevent misbehavior like a Transparency Log would
-have.<a href="#section-3.2-14" class="pilcrow">¶</a></p>
-<p id="section-3.2-15">Key Transparency systems are generally distinguished from other transparency
+have.<a href="#section-3.2-15" class="pilcrow">¶</a></p>
+<p id="section-3.2-16">Key Transparency systems are generally distinguished from other transparency
 systems by the fact that they augment a Transparency Log with additional
 structure to allow efficient and verifiable searches for specific data. In the
 context of providing transparency to the web PKI, this would allow Site
@@ -1574,10 +1596,10 @@ Operators to download only a small subset of the data in a Transparency Log and
 still be assured to have received all certificates that are relevant to them.
 Due to the significantly reduced need for outbound bandwidth, operating
 such a Transparency Log would cost roughly one million times less than it would
-if Site Operators were required to download the log's entire contents.<a href="#section-3.2-15" class="pilcrow">¶</a></p>
-<p id="section-3.2-16">While the protocol described in <span>[<a href="#KEYTRANS" class="cite xref">KEYTRANS</a>]</span> could be applied directly, some
+if Site Operators were required to download the log's entire contents.<a href="#section-3.2-16" class="pilcrow">¶</a></p>
+<p id="section-3.2-17">While the protocol described in <span>[<a href="#KEYTRANS" class="cite xref">KEYTRANS</a>]</span> could be applied directly, some
 optimizations and simplifications specific to the web PKI are provided in
-<a href="#transparency-log" class="auto internal xref">Section 4</a>.<a href="#section-3.2-16" class="pilcrow">¶</a></p>
+<a href="#transparency-log" class="auto internal xref">Section 4</a>.<a href="#section-3.2-17" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="summary">
@@ -3042,6 +3064,38 @@ Authority rather than abuse of a compromised/revoked certificate.<a href="#secti
 <a href="#section-12.2" class="section-number selfRef">12.2. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
         </h3>
 <dl class="references">
+<dt id="AppleKT">[AppleKT]</dt>
+        <dd>
+<span class="refAuthor">Apple</span>, <span class="refTitle">"Advancing iMessage security: iMessage Contact Key Verification"</span>, <time datetime="2023-10-27" class="refDate">27 October 2023</time>, <span>&lt;<a href="https://security.apple.com/blog/imessage-contact-key-verification/">https://security.apple.com/blog/imessage-contact-key-verification/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="CertLifetimes">[CertLifetimes]</dt>
+        <dd>
+<span class="refTitle">"SC-081v3: Introduce Schedule of Reducing Validity and Data Reuse Periods"</span>, <span>n.d.</span>, <span>&lt;<a href="https://groups.google.com/a/groups.cabforum.org/g/servercert-wg/c/bvWh5RN6tYI">https://groups.google.com/a/groups.cabforum.org/g/servercert-wg/c/bvWh5RN6tYI</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="Clubcards">[Clubcards]</dt>
+        <dd>
+<span class="refAuthor">Schanck, J. M.</span> and <span class="refAuthor">Mozilla</span>, <span class="refTitle">"Clubcards for the WebPKI: smaller certificate revocation tests in theory and practice"</span>, <time datetime="2025-04-01" class="refDate">1 April 2025</time>, <span>&lt;<a href="https://research.mozilla.org/files/2025/04/clubcards_for_the_webpki.pdf">https://research.mozilla.org/files/2025/04/clubcards_for_the_webpki.pdf</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="CRLite">[CRLite]</dt>
+        <dd>
+<span class="refAuthor">Jones, J.C.</span> and <span class="refAuthor">Mozilla</span>, <span class="refTitle">"Introducing CRLite: All of the Web PKI’s revocations, compressed"</span>, <time datetime="2020-01-09" class="refDate">9 January 2020</time>, <span>&lt;<a href="https://blog.mozilla.org/security/2020/01/09/crlite-part-1-all-web-pki-revocations-compressed/">https://blog.mozilla.org/security/2020/01/09/crlite-part-1-all-web-pki-revocations-compressed/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="CRLSets">[CRLSets]</dt>
+        <dd>
+<span class="refTitle">"Chromium Security &gt; CRLSets"</span>, <span>n.d.</span>, <span>&lt;<a href="https://www.chromium.org/Home/chromium-security/crlsets/">https://www.chromium.org/Home/chromium-security/crlsets/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="KeyTransWG">[KeyTransWG]</dt>
+        <dd>
+<span class="refTitle">"Key Transparency (keytrans) Working Group"</span>, <span>n.d.</span>, <span>&lt;<a href="https://datatracker.ietf.org/wg/keytrans/about/">https://datatracker.ietf.org/wg/keytrans/about/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="MetaKT">[MetaKT]</dt>
+        <dd>
+<span class="refAuthor">Meta</span>, <span class="refTitle">"Deploying key transparency at WhatsApp"</span>, <time datetime="2023-04-13" class="refDate">13 April 2023</time>, <span>&lt;<a href="https://engineering.fb.com/2023/04/13/security/whatsapp-key-transparency/">https://engineering.fb.com/2023/04/13/security/whatsapp-key-transparency/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="ProtonKT">[ProtonKT]</dt>
+        <dd>
+<span class="refAuthor">Proton</span>, <span class="refTitle">"What is Key Transparency?"</span>, <span>n.d.</span>, <span>&lt;<a href="https://proton.me/support/key-transparency">https://proton.me/support/key-transparency</a>&gt;</span>. </dd>
+<dd class="break"></dd>
 <dt id="RFC6962">[RFC6962]</dt>
         <dd>
 <span class="refAuthor">Laurie, B.</span>, <span class="refAuthor">Langley, A.</span>, and <span class="refAuthor">E. Kasper</span>, <span class="refTitle">"Certificate Transparency"</span>, <span class="seriesInfo">RFC 6962</span>, <span class="seriesInfo">DOI 10.17487/RFC6962</span>, <time datetime="2013-06" class="refDate">June 2013</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc6962">https://www.rfc-editor.org/rfc/rfc6962</a>&gt;</span>. </dd>
