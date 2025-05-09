@@ -40,6 +40,54 @@ normative:
 
 informative:
 
+  CRLSets:
+    title: Chromium Security > CRLSets
+    target: https://www.chromium.org/Home/chromium-security/crlsets/
+
+  CRLite:
+    title: "Introducing CRLite: All of the Web PKI’s revocations, compressed"
+    target: https://blog.mozilla.org/security/2020/01/09/crlite-part-1-all-web-pki-revocations-compressed/
+    date: 2020-01-09
+    author:
+      - name: J.C. Jones
+      - org: Mozilla
+
+  Clubcards:
+    title: "Clubcards for the WebPKI: smaller certificate revocation tests in theory and practice"
+    target: https://research.mozilla.org/files/2025/04/clubcards_for_the_webpki.pdf
+    date: 2025-04-01
+    author:
+      - name: John M. Schanck
+      - org: Mozilla
+
+  ProtonKT:
+    title: "What is Key Transparency?"
+    target: https://proton.me/support/key-transparency
+    author:
+      - org: Proton
+
+  AppleKT:
+    title: "Advancing iMessage security: iMessage Contact Key Verification"
+    target: https://security.apple.com/blog/imessage-contact-key-verification/
+    date: 2023-10-27
+    author:
+      - org: Apple
+
+  MetaKT:
+    title: Deploying key transparency at WhatsApp
+    target: https://engineering.fb.com/2023/04/13/security/whatsapp-key-transparency/
+    date: 2023-04-13
+    author:
+      - org: Meta
+
+  KeyTransWG:
+    title: Key Transparency (keytrans) Working Group
+    target: https://datatracker.ietf.org/wg/keytrans/about/
+
+  CertLifetimes:
+    title:  "SC-081v3: Introduce Schedule of Reducing Validity and Data Reuse Periods"
+    target: https://groups.google.com/a/groups.cabforum.org/g/servercert-wg/c/bvWh5RN6tYI
+
 --- abstract
 
 This document describes reliable mechanisms for the publication and revocation
@@ -73,23 +121,39 @@ It is also becoming far too expensive to both operate a CT log and to monitor
 CT logs. Logs are required to serve their entire contents to anyone on the
 internet, which consumes a significant amount of outbound bandwidth. Similarly,
 monitoring certificate issuance in CT requires downloading the entire contents
-of all logs, which is several terabytes of data at minimum.
+of all logs, which is several terabytes of data at minimum. The total bandwidth
+costs of the CT ecosystem scale linearly in the number of certificates issued,
+the number of logs active, and the number of interested monitors.
 
-The fundamental purpose for publishing TLS certificates is to allow site operators
-to identify and revoke those certificates which are mis-issued. However,
-revocation systems have historically been plagued by a requirement to "fail
-open". That is, revocation checks would stop being enforced in certain (often,
-easily engineered) scenarios. For example, if the server didn't proactively
-offer proof of non-revocation or if a third-party service was inaccessible for
-too long, this might cause revocation checks to be disabled. One promising
-exception to this general principle, OCSP Must-Staple {{?RFC7633}}, has
-unfortunately been the victim of waning support for OCSP by Certificate
-Authorities.
+One of the primary motivations for publishing TLS certificates is to allow site
+operators to identify and revoke those certificates which are mis-issued.
+However, revocation systems have historically been plagued by a requirement to
+"fail open". That is, revocation checks would stop being enforced in certain
+(often, easily engineered) scenarios. For example, clients using OCSP must
+typically fail open in the event the OCSP server is unreachable. Alternatives
+like OCSP Must-Staple {{?RFC7633}} were designed to close this loophole, but
+have been stymied by lack of support in popular web servers.
+
+More recent alternatives like CRLSets {{CRLSets}}, CRLite {{CRLite}}, and
+Clubcards {{Clubcards}} provide fail-closed revocation checks to clients, but
+are unstandardized, rely on trusting the server operator (who is typically a
+client vendor, rather than a CA) and offer limited transparency properties.
 
 This motivates a need for a new system of publishing certificates that's
 resistant to collusion and dramatically more efficient to operate, and a need
 for a new system of revoking certificates that can be consistently enforced.
 
+Since the initial deployment of Certificate Transparency in 2013, there has been
+a considerable body of research published on transparency systems. In recent
+years, Key Transparency systems have been deployed by Apple {{AppleKT}}, Meta
+{{MetaKT}}, and ProtonMail {{ProtonKT}}. These systems not only provide stronger
+security properties, but also support transparent revocation, and also scale with
+less bandwidth costs.
+
+Key Transparency is being standardized in the KeyTrans IETF WG {{KeyTransWG}}. This
+document describes how a similar design as the one being considered in the
+KeyTrans WG could be applied to TLS in order to provide stronger security
+properties whilst also reducing the TLS handshake size.
 
 # Conventions and Definitions
 
@@ -242,6 +306,15 @@ short-lived, and issuance is transparent, then revocation is provided by the
 transparency system as claimed. If certificates may be issued with longer
 lifespans, then a second revocation mechanism for these certificates is
 necessary.
+
+All certificate lifetimes are already planned to fall from 398 days today to 47
+days in 2029 {{CertLifetimes}}, bringing a number of security and agility
+benefits to the ecosystem. However, 47 days is still much longer than is
+tolerable without effective revocation. Although a further reduction to 7 days
+or 24 hours is possible in theory, each halving in lifetime results in doubling
+the issuance load for CAs, CT logs and monitors. The net effect would be a ~56x
+increase in issuance rate in order to maintain the same size PKI as we have
+today.
 
 **Transparency Logs must implement a protocol similar to Key Transparency
 {{!KEYTRANS=I-D.draft-ietf-keytrans-protocol}}.** As stated at
