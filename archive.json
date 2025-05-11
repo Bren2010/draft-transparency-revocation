@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2025-05-04T00:25:50.754126+00:00",
+  "timestamp": "2025-05-11T00:24:53.056814+00:00",
   "repo": "Bren2010/draft-transparency-revocation",
   "labels": [
     {
@@ -173,24 +173,26 @@
       "id": "PR_kwDONGZggs6UMhsf",
       "title": "Front matter",
       "url": "https://github.com/Bren2010/draft-transparency-revocation/pull/1",
-      "state": "OPEN",
+      "state": "MERGED",
       "author": "dennisjackson",
       "authorAssociation": "COLLABORATOR",
       "assignees": [],
       "labels": [],
       "body": "Sharpens the discussion around revocation and shorter lifetimes. Teases KT in the intro. ",
       "createdAt": "2025-04-28T16:13:14Z",
-      "updatedAt": "2025-04-28T23:22:08Z",
+      "updatedAt": "2025-05-09T02:02:20Z",
       "baseRepository": "Bren2010/draft-transparency-revocation",
       "baseRefName": "main",
       "baseRefOid": "ad39b6aa235c16796278435963b64b91ada61c0b",
       "headRepository": "Bren2010/draft-transparency-revocation",
       "headRefName": "intro",
       "headRefOid": "e11bf0d4798199c7e70299e5716cdf03db815c78",
-      "closedAt": null,
-      "mergedAt": null,
-      "mergedBy": null,
-      "mergeCommit": null,
+      "closedAt": "2025-05-09T02:02:20Z",
+      "mergedAt": "2025-05-09T02:02:20Z",
+      "mergedBy": "Bren2010",
+      "mergeCommit": {
+        "oid": "83b43a8d28c8c0c11e7300e210154663a14a52d0"
+      },
       "comments": [
         {
           "author": "dennisjackson",
