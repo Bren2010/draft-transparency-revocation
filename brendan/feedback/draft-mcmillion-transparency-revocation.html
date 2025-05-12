@@ -1056,7 +1056,7 @@ svg :is([fill="white"], [fill^="#fff"]) {
 </tr></thead>
 <tfoot><tr>
 <td class="left">McMillion, et al.</td>
-<td class="center">Expires 11 November 2025</td>
+<td class="center">Expires 13 November 2025</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1069,12 +1069,12 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <dd class="internet-draft">draft-mcmillion-transparency-revocation-latest</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2025-05-10" class="published">10 May 2025</time>
+<time datetime="2025-05-12" class="published">12 May 2025</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Informational</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2025-11-11">11 November 2025</time></dd>
+<dd class="expires"><time datetime="2025-11-13">13 November 2025</time></dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
 <div class="author">
@@ -1133,7 +1133,7 @@ of cascading outages.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 11 November 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 13 November 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -1901,10 +1901,10 @@ opaque ReferenceId&lt;0..2^8-1&gt;;
 
 struct {
   uint64 tree_size;
-  uint32 subtree_sizes&lt;0..2^8-1&gt;;
+  uint32 subtree_sizes&lt;1..2^8-1&gt;;
 
-  ReferenceId reference_ids&lt;0..2^8-1&gt;;
-  Certificate chain&lt;0..2^8-1&gt;;
+  ReferenceId reference_ids&lt;1..2^8-1&gt;;
+  Certificate chain&lt;1..2^8-1&gt;;
   opaque signature&lt;0..2^16-1&gt;;
 } AddChainRequest;
 
@@ -1915,7 +1915,7 @@ struct {
       ProvisionalTreeHead tree_head;
       CombinedTreeProof combined;
       PrefixProof prefix;
-      SubtreeInclusionProof subtree&lt;0..2^8-1&gt;;
+      SubtreeInclusionProof subtree&lt;1..2^8-1&gt;;
   }
   BearerToken bearer_token;
 } AddChainResponse;
@@ -1982,7 +1982,7 @@ time.<a href="#section-4.2.3-1" class="pilcrow">¶</a></p>
 <pre>
 struct {
   PrefixProof prefix;
-  SubtreeInclusionProof subtree&lt;0..2^8-1&gt;;
+  SubtreeInclusionProof subtree&lt;1..2^8-1&gt;;
 } RefreshProofResponse;
 </pre><a href="#section-4.2.3-3" class="pilcrow">¶</a>
 </div>
@@ -2173,58 +2173,71 @@ struct {
   select (SupportedTransparencyLog.tree_head_type) {
     case standard:
       uint64 tree_size;
-    case provisional:
-      BearerToken bearer_token;
-  }
+  };
 } SupportedTransparencyLog;
 
 struct {
   SupportedTransparencyLog supported&lt;0..2^8-1&gt;;
+  select (any supported[i].tree_head_type is provisional) {
+    case true:
+      BearerToken bearer_token;
+  }
 } TransparencyRequest;
 </pre><a href="#section-5.1-2" class="pilcrow">¶</a>
 </div>
 <p id="section-5.1-3">The extension has type "transparency_revocation" and consists of a serialized
-<code>TransparencyRequest</code> structure in the "extension_data" field.<a href="#section-5.1-3" class="pilcrow">¶</a></p>
+<code>TransparencyRequest</code> structure in the <code>extension_data</code> field.<a href="#section-5.1-3" class="pilcrow">¶</a></p>
 <p id="section-5.1-4">Clients include an entry in the <code>supported</code> array for each Transparency Log
 that they support receiving inclusion proofs from, containing the Transparency
 Log's assigned unique identifier in <code>transparency_log_id</code>. The <code>supported</code> array
 <span class="bcp14">MUST</span> be sorted in ascending order by <code>transparency_log_id</code>, and each
 <code>transparency_log_id</code> <span class="bcp14">MUST</span> only be advertised once.<a href="#section-5.1-4" class="pilcrow">¶</a></p>
-<p id="section-5.1-5">If the client was shown a provisional inclusion proof in a previous
-connection to the server, then they will have also received a bearer token and a
-pre-shared key. For as long as the client has not yet seen the provisional
-proof integrated into the subsequent log entry, and as long as the rightmost log
-entry's timestamp is less than or equal to <code>10*max_behind</code> milliseconds in the
-past, the client advertises a <code>provisional</code> tree head type and includes the
-provided bearer token in <code>bearer_token</code>. If the server indicates the
-Transparency Log in its ServerHello extension, the client will set the PSK
-input to the TLS key schedule to be the pre-shared key.<a href="#section-5.1-5" class="pilcrow">¶</a></p>
-<p id="section-5.1-6">Clients that do not need to resolve a provisional inclusion proof advertise
-a <code>standard</code> tree head type. The <code>tree_size</code> field is set as follows:<a href="#section-5.1-6" class="pilcrow">¶</a></p>
+<p id="section-5.1-5">If a client was shown a provisional inclusion proof from a Transparency Log in a
+previous connection to the server, the client sets <code>tree_head_type</code> to be
+<code>provisional</code> for that Transparency Log's entry in <code>supported</code> until one of the
+following conditions is met:<a href="#section-5.1-5" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.1-6">
+<li id="section-5.1-6.1">
+            <p id="section-5.1-6.1.1">The client receives proof that the provisional proof was integrated into the
+subsequent log entry, or:<a href="#section-5.1-6.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.1-6.2">
+            <p id="section-5.1-6.2.1">The timestamp of the rightmost log entry that existed in the provisional
+inclusion proof is more than <code>10*max_behind</code> milliseconds in the past.<a href="#section-5.1-6.2.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+<p id="section-5.1-7">For Transparency Logs where the client does not need to resolve a provisional
+inclusion proof, <code>tree_head_type</code> is set to <code>standard</code>. The <code>tree_size</code> field is
+set as follows:<a href="#section-5.1-7" class="pilcrow">¶</a></p>
 <ul class="normal">
-<li class="normal" id="section-5.1-7.1">
-            <p id="section-5.1-7.1.1">If the client is aware of two consecutive log entries where the timestamp
+<li class="normal" id="section-5.1-8.1">
+            <p id="section-5.1-8.1.1">If the client is aware of two consecutive log entries where the timestamp
 of the left log entry is greater than <code>max_behind</code> milliseconds in the past
 and the timestamp of the right log entry is less than or equal to <code>max_behind</code>
 milliseconds in the past, then the <code>tree_size</code> field is set so as to make the
-right log entry the rightmost log entry.<a href="#section-5.1-7.1.1" class="pilcrow">¶</a></p>
+right log entry the rightmost log entry.<a href="#section-5.1-8.1.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-5.1-7.2">
-            <p id="section-5.1-7.2.1">If the client isn't aware of two log entries that meet the above criteria,
+          <li class="normal" id="section-5.1-8.2">
+            <p id="section-5.1-8.2.1">If the client isn't aware of two log entries that meet the above criteria,
 but is aware of a log entry whose timestamp is greater than <code>max_behind</code>
 milliseconds in the past and less than <code>10*max_behind</code> milliseconds in the
 past, then the <code>tree_size</code> field is set so as to make the rightmost such log
-entry the rightmost log entry.<a href="#section-5.1-7.2.1" class="pilcrow">¶</a></p>
+entry the rightmost log entry.<a href="#section-5.1-8.2.1" class="pilcrow">¶</a></p>
 </li>
-          <li class="normal" id="section-5.1-7.3">
-            <p id="section-5.1-7.3.1">Otherwise, the <code>tree_size</code> field is set to 0.<a href="#section-5.1-7.3.1" class="pilcrow">¶</a></p>
+          <li class="normal" id="section-5.1-8.3">
+            <p id="section-5.1-8.3.1">Otherwise, the <code>tree_size</code> field is set to 0.<a href="#section-5.1-8.3.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
-<p id="section-5.1-8">With the first criteria, the client is aiming to advertise the
+<p id="section-5.1-9">With the first criteria, the client is aiming to advertise the
 oldest <code>tree_size</code> that a server could provide an inclusion proof against
 without it being expired. If the client is unable to do this, the second
 criteria aims to advertise a <code>tree_size</code> that's old enough that it would not be
-de-anonymizing, but not so old that servers are unaware of it.<a href="#section-5.1-8" class="pilcrow">¶</a></p>
+de-anonymizing, but not so old that servers are unaware of it.<a href="#section-5.1-9" class="pilcrow">¶</a></p>
+<p id="section-5.1-10">If the <code>tree_head_type</code> of any SupportedTransparencyLog structure is set to
+<code>provisional</code>, then a bearer token is provided in <code>bearer_token</code>. The bearer
+token to use is provided by the server in a previous connection. The same bearer
+token <span class="bcp14">MAY</span> be advertised in multiple ClientHello messages but clients <span class="bcp14">SHOULD</span> take
+care to minimize the likelihood of this.<a href="#section-5.1-10" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="serverhello">
@@ -2269,8 +2282,7 @@ enum {
   reserved(0),
   standard(1),
   provisional(2),
-  same_standard(3),
-  same_provisional(4),
+  same_head(3),
   (255)
 } TransparencyProofType;
 
@@ -2285,9 +2297,9 @@ struct {
   CombinedTreeProof combined;
   select (condition) {
     case true:
-      SequencingProof sequencing;
+      SequencingProof sequencing&lt;1..2^8-1&gt;;
   }
-  SubtreeInclusionProof subtree;
+  SubtreeInclusionProof subtree&lt;1..2^8-1&gt;;
 } StandardProof;
 
 struct {
@@ -2295,28 +2307,21 @@ struct {
   CombinedTreeProof combined;
   select (condition) {
     case true:
-      SequencingProof sequencing;
+      SequencingProof sequencing&lt;1..2^8-1&gt;;
   }
 
   PrefixProof prefix;
-  SubtreeInclusionProof subtree;
-
-  BearerToken bearer_token;
-  opaque pre_shared_key&lt;16&gt;;
+  SubtreeInclusionProof subtree&lt;1..2^8-1&gt;;
 } ProvisionalProof;
 
 struct {
   PrefixProof prefix;
-  SubtreeInclusionProof subtree;
-} SameStandardProof;
-
-struct {
-  uint32 position;
-  InclusionProof inclusion;
-} SameProvisionalProof;
+  SubtreeInclusionProof subtree&lt;1..2^8-1&gt;;
+} SameHeadProof;
 
 struct {
   uint16 transparency_log_id;
+  uint8 reference_ids&lt;1..2^8-1&gt;;
 
   TransparencyProofType proof_type;
   select(TransparencyProof.proof_type) {
@@ -2324,92 +2329,132 @@ struct {
       StandardProof proof;
     case provisional:
       ProvisionalProof proof;
-    case same_standard:
-      SameStandardProof proof;
-    case same_provisional:
-      SameProvisionalProof proof;
+    case same_head:
+      SameHeadProof proof;
   };
+
+  select (condition) {
+    case true:
+      BearerToken bearer_token;
+      opaque pre_shared_key&lt;Npsk&gt;;
+  }
 } TransparencyProof;
 </pre><a href="#section-5.3-2" class="pilcrow">¶</a>
 </div>
 <p id="section-5.3-3">The <code>transparency_log_id</code> field specifies the Transparency Log that the proof
-comes from, while the <code>proof_type</code> field specifies the type of proof that
-follows. Clients first verify that the Certificate Authority that issued the
-presented certificate chain, and the Transparency Log identified by
-<code>transparency_log_id</code>, are operated by different organizations. Verification
-then proceeds as follows, based on <code>proof_type</code>:<a href="#section-5.3-3" class="pilcrow">¶</a></p>
-<p id="section-5.3-4">When <code>proof_type</code> is set to <code>standard</code>, this indicates that the inclusion proof
-is against a log entry that is currently published by the Transparency Log but
-more recent than the client may be aware of. These proofs are verified as
-follows:<a href="#section-5.3-4" class="pilcrow">¶</a></p>
+comes from. The <code>reference_ids</code> field specifies the set of reference identifiers
+that the proof will cover, specified as a zero-indexed offset into the leaf
+certificate's subjectAltName extension. The <code>proof_type</code> field specifies the
+type of proof that follows.<a href="#section-5.3-3" class="pilcrow">¶</a></p>
+<p id="section-5.3-4">If any of the following conditions are true, then the <code>bearer_token</code> and
+<code>pre_shared_key</code> fields are present:<a href="#section-5.3-4" class="pilcrow">¶</a></p>
 <ol start="1" type="1" class="normal type-1" id="section-5.3-5">
 <li id="section-5.3-5.1">
-            <p id="section-5.3-5.1.1">Verify that <code>tree_head.size</code> is greater than the size of the tree head
-advertised by the client.<a href="#section-5.3-5.1.1" class="pilcrow">¶</a></p>
+            <p id="section-5.3-5.1.1"><code>proof_type</code> is set to <code>provisional</code>,<a href="#section-5.3-5.1.1" class="pilcrow">¶</a></p>
 </li>
           <li id="section-5.3-5.2">
-            <p id="section-5.3-5.2.1">Verify <code>combined</code> as executing the following proofs in this order:<a href="#section-5.3-5.2.1" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-5.3-5.2.2">
-<li id="section-5.3-5.2.2.1">
-                <p id="section-5.3-5.2.2.1.1">Updating the view of the tree (<span><a href="https://datatracker.ietf.org/doc/html/draft-ietf-keytrans-protocol-00#section-10.3.1" class="relref">Section 10.3.1</a> of [<a href="#KEYTRANS" class="cite xref">KEYTRANS</a>]</span>). Note that
-verifying this proof step also verifies that the rightmost log entry's
-timestamp is within the bounds set by <code>max_ahead</code> and <code>max_behind</code>.<a href="#section-5.3-5.2.2.1.1" class="pilcrow">¶</a></p>
-</li>
-              <li id="section-5.3-5.2.2.2">
-                <p id="section-5.3-5.2.2.2.1">If a provisional tree head was advertised by the client and the subsequent
-log entry is not the rightmost log entry, then the subsequent log entry's
-timestamp and a <code>PrefixProof</code> from it are added to <code>combined</code>. (The
-<strong>subsequent log entry</strong> is defined as the first log entry sequenced after
-the provisional tree head was created.)<a href="#section-5.3-5.2.2.2.1" class="pilcrow">¶</a></p>
-</li>
-              <li id="section-5.3-5.2.2.3">
-                <p id="section-5.3-5.2.2.3.1">Finally, a <code>PrefixProof</code> from the rightmost log entry is added to
-<code>combined</code>.<a href="#section-5.3-5.2.2.3.1" class="pilcrow">¶</a></p>
-</li>
-            </ol>
+            <p id="section-5.3-5.2.1">A provisional tree head type was advertised in the ClientHello for any
+Transparency Log other than that identified by <code>transparency_log_id</code>,<a href="#section-5.3-5.2.1" class="pilcrow">¶</a></p>
 </li>
           <li id="section-5.3-5.3">
-            <p id="section-5.3-5.3.1">The <code>sequencing</code> field must be present when a provisional tree head was
-advertised by the client and the subsequent log entry is not the rightmost log
-entry. The <code>sequencing</code> field contains the size of the Certificate Subtree
-and the <code>first_valid</code> and <code>invalid_entries</code> fields of the <code>DomainCertificates</code>
-structure as it exists in the subsequent log entry. If present:<a href="#section-5.3-5.3.1" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-5.3-5.3.2">
-<li id="section-5.3-5.3.2.1">
-                <p id="section-5.3-5.3.2.1.1">Verify that <code>sequencing.size</code> is greater than or equal to the retained size
-of the Certificate Subtree.<a href="#section-5.3-5.3.2.1.1" class="pilcrow">¶</a></p>
+            <p id="section-5.3-5.3.1">A provisional tree head type was advertised in the ClientHello for the
+Transparency Log identified by <code>transparency_log_id</code> and <code>proof_type</code> is set
+to <code>same_head</code>.<a href="#section-5.3-5.3.1" class="pilcrow">¶</a></p>
 </li>
-              <li id="section-5.3-5.3.2.2">
-                <p id="section-5.3-5.3.2.2.1">Verify that <code>sequencing.{first_valid, invalid_entries}</code> would not unrevoke
-any previously-revoked certificates.<a href="#section-5.3-5.3.2.2.1" class="pilcrow">¶</a></p>
+        </ol>
+<p id="section-5.3-6">Clients verify that the <code>reference_ids</code> field is sorted in ascending order,
+contains at least one entry, contains no duplicates, and that each index
+corresponds to a domain name or IP address in the leaf certificate's
+subjectAltName extension. Clients <span class="bcp14">MUST NOT</span> trust a connection for any name other
+than those in <code>reference_ids</code>.<a href="#section-5.3-6" class="pilcrow">¶</a></p>
+<p id="section-5.3-7">Clients prepare a list, referred to as the <strong>Current Authenticated Search
+Keys</strong>, that contains the corresponding Prefix Tree search key for each
+reference identifier in <code>reference_ids</code>. This list is de-duplicated and stored
+in ascending lexicographic order. If the client advertised a provisional tree
+head type for the chosen Transparency Log, the client additionally prepares a
+list referred to as the <strong>Past Authenticated Search Keys</strong>. This list contains
+the union of every Current Authenticated Search Keys list from past connections
+where a provisional proof was presented and the provisional proof has not yet
+been proven consistent with the <strong>subsequent log entry</strong> (defined as the first
+log entry sequenced after the provisional tree head was created). This list is
+also de-duplicated and stored in ascending lexicographic order.<a href="#section-5.3-7" class="pilcrow">¶</a></p>
+<p id="section-5.3-8">Verification proceeds as follows, based on <code>proof_type</code>:<a href="#section-5.3-8" class="pilcrow">¶</a></p>
+<p id="section-5.3-9">When <code>proof_type</code> is set to <code>standard</code>, this indicates that the inclusion proof
+is against a log entry that is currently published by the Transparency Log but
+more recent than the client may be aware of. These proofs are verified as
+follows:<a href="#section-5.3-9" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3-10">
+<li id="section-5.3-10.1">
+            <p id="section-5.3-10.1.1">Verify that <code>tree_head.size</code> is greater than the size of the tree head
+advertised by the client.<a href="#section-5.3-10.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.3-10.2">
+            <p id="section-5.3-10.2.1">Verify <code>combined</code> as executing the following proofs in this order:<a href="#section-5.3-10.2.1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3-10.2.2">
+<li id="section-5.3-10.2.2.1">
+                <p id="section-5.3-10.2.2.1.1">Updating the view of the tree (<span><a href="https://datatracker.ietf.org/doc/html/draft-ietf-keytrans-protocol-00#section-10.3.1" class="relref">Section 10.3.1</a> of [<a href="#KEYTRANS" class="cite xref">KEYTRANS</a>]</span>). Note that
+verifying this proof step also verifies that the rightmost log entry's
+timestamp is within the bounds set by <code>max_ahead</code> and <code>max_behind</code>.<a href="#section-5.3-10.2.2.1.1" class="pilcrow">¶</a></p>
+</li>
+              <li id="section-5.3-10.2.2.2">
+                <p id="section-5.3-10.2.2.2.1">The client requires a <code>PrefixProof</code> from the rightmost log entry for the
+Current Authenticated Search Keys. If the client advertised a provisional
+tree head type for the chosen Transparency Log, the client additionally
+requires a <code>PrefixProof</code> from the subsequent log entry for the Past
+Authenticated Search Keys.<a href="#section-5.3-10.2.2.2.1" class="pilcrow">¶</a></p>
+<p id="section-5.3-10.2.2.2.2">
+If the rightmost log entry and the subsequent log entry are the same, then
+only one <code>PrefixProof</code> for the union of the two lists is provided in
+<code>combined</code>. Otherwise, a <code>PrefixProof</code> from the rightmost log entry is
+provided, and a second <code>PrefixProof</code> from the subsequent log entry is
+provided along with the subsequent log entry's timestamp.<a href="#section-5.3-10.2.2.2.2" class="pilcrow">¶</a></p>
 </li>
             </ol>
 </li>
-          <li id="section-5.3-5.4">
-            <p id="section-5.3-5.4.1">If the <code>sequencing</code> field is present, compare the following fields in
+          <li id="section-5.3-10.3">
+            <p id="section-5.3-10.3.1">If the client advertised a provisional tree head type for the chosen
+Transparency Log, the client prepares a list referred to as the <strong>Sequenced
+Search Keys</strong>. This list is initially set to be equal to the Past
+Authenticated Search Keys list. If the subsequent log entry is the same as
+the rightmost log entry, the Sequenced Search Keys list is updated to remove
+entries which are contained in the Current Authenticated Search Keys list.<a href="#section-5.3-10.3.1" class="pilcrow">¶</a></p>
+<p id="section-5.3-10.3.2">
+If this list is not empty, the <code>sequencing</code> field is expected to be present.
+Each entry in the <code>sequencing</code> field corresponds to each entry in the
+Sequenced Search Keys list. Each SequencingProof structure contains size of
+the Certificate Subtree for the given search key, and the <code>first_valid</code> and
+<code>invalid_entries</code> fields of its <code>DomainCertificates</code> structure as it exists
+in the subsequent log entry. Clients verify that:
+1. <code>sequencing.size</code> is greater than or equal to the retained size of the
+   Certificate Subtree.
+2. <code>sequencing.{first_valid, invalid_entries}</code> would not unrevoke any
+   previously revoked certificates.<a href="#section-5.3-10.3.2" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.3-10.4">
+            <p id="section-5.3-10.4.1">If the <code>sequencing</code> field is present, compare the following fields in
 <code>subtree</code> against those in <code>sequencing</code>; if the <code>sequencing</code> field is not
 present but the client advertised a provisional tree head, compare the fields
-against the advertised provisional tree head:<a href="#section-5.3-5.4.1" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-5.3-5.4.2">
-<li id="section-5.3-5.4.2.1">
-                <p id="section-5.3-5.4.2.1.1">Verify that <code>subtree.size</code> is greater than or equal.<a href="#section-5.3-5.4.2.1.1" class="pilcrow">¶</a></p>
+against the advertised provisional tree head:<a href="#section-5.3-10.4.1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3-10.4.2">
+<li id="section-5.3-10.4.2.1">
+                <p id="section-5.3-10.4.2.1.1">Verify that <code>subtree.size</code> is greater than or equal.<a href="#section-5.3-10.4.2.1.1" class="pilcrow">¶</a></p>
 </li>
-              <li id="section-5.3-5.4.2.2">
-                <p id="section-5.3-5.4.2.2.1">Verify that <code>subtree.{first_valid, invalid_entries}</code> would not unrevoke any
-previously-revoked certificates.<a href="#section-5.3-5.4.2.2.1" class="pilcrow">¶</a></p>
+              <li id="section-5.3-10.4.2.2">
+                <p id="section-5.3-10.4.2.2.1">Verify that <code>subtree.{first_valid, invalid_entries}</code> would not unrevoke any
+previously-revoked certificates.<a href="#section-5.3-10.4.2.2.1" class="pilcrow">¶</a></p>
 </li>
             </ol>
 </li>
-          <li id="section-5.3-5.5">
-            <p id="section-5.3-5.5.1">Verify that <code>subtree.{first_valid, invalid_entries}</code> do not exclude
-<code>subtree.position</code>.<a href="#section-5.3-5.5.1" class="pilcrow">¶</a></p>
+          <li id="section-5.3-10.5">
+            <p id="section-5.3-10.5.1">Verify that <code>subtree.{first_valid, invalid_entries}</code> do not exclude
+<code>subtree.position</code>.<a href="#section-5.3-10.5.1" class="pilcrow">¶</a></p>
 </li>
-          <li id="section-5.3-5.6">
-            <p id="section-5.3-5.6.1">Compute the root hash of the Log Tree and verify the signature in
-<code>tree_head.signature</code>:<a href="#section-5.3-5.6.1" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-5.3-5.6.2">
-<li id="section-5.3-5.6.2.1">
-                <p id="section-5.3-5.6.2.1.1">Compute the root hash of the Certificate Subtree as it exists in the
+          <li id="section-5.3-10.6">
+            <p id="section-5.3-10.6.1">Compute the root hash of the Log Tree and verify the signature in
+<code>tree_head.signature</code>:<a href="#section-5.3-10.6.1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3-10.6.2">
+<li id="section-5.3-10.6.2.1">
+                <p id="section-5.3-10.6.2.1.1">Compute the root hash of the Certificate Subtree as it exists in the
 rightmost log entry. If the <code>sequencing</code> field is present, also compute the
 root hash of the Certificate Subtree as it exists in the subsequent log
 entry. Both of these are done by interpreting <code>subtree.inclusion</code> as a proof
@@ -2418,91 +2463,91 @@ of inclusion in the Certificate Subtree for <code>subtree.position</code>. If th
 minimum set of node hashes necessary to compute the root of the Certificate
 Subtree at size <code>sequencing.size</code>. If the client advertised a provisional
 tree head, the full subtrees of the Certificate Subtree as it existed in the
-advertised tree head are assumed to be known and will not be repeated.<a href="#section-5.3-5.6.2.1.1" class="pilcrow">¶</a></p>
+advertised tree head are assumed to be known and will not be repeated.<a href="#section-5.3-10.6.2.1.1" class="pilcrow">¶</a></p>
 </li>
-              <li id="section-5.3-5.6.2.2">
-                <p id="section-5.3-5.6.2.2.1">With the root hash of the Certificate Subtree and the other fields in
+              <li id="section-5.3-10.6.2.2">
+                <p id="section-5.3-10.6.2.2.1">With the root hash of the Certificate Subtree and the other fields in
 <code>subtree</code>, compute the Prefix Tree leaf hash for the rightmost log entry. If
 the <code>sequencing</code> field is present, use the fields of <code>sequencing</code> to compute
-the Prefix Tree leaf hash for the subsequent log entry.<a href="#section-5.3-5.6.2.2.1" class="pilcrow">¶</a></p>
+the Prefix Tree leaf hash for the subsequent log entry.<a href="#section-5.3-10.6.2.2.1" class="pilcrow">¶</a></p>
 </li>
-              <li id="section-5.3-5.6.2.3">
-                <p id="section-5.3-5.6.2.3.1">With the Prefix Tree leaf hash(es), compute the root hash of the Log Tree
+              <li id="section-5.3-10.6.2.3">
+                <p id="section-5.3-10.6.2.3.1">With the Prefix Tree leaf hash(es), compute the root hash of the Log Tree
 with <code>combined</code>. Note that the full subtrees of the Log Tree advertised by
-the client are assumed to already be known and will not be repeated.<a href="#section-5.3-5.6.2.3.1" class="pilcrow">¶</a></p>
+the client are assumed to already be known and will not be repeated.<a href="#section-5.3-10.6.2.3.1" class="pilcrow">¶</a></p>
 </li>
             </ol>
 </li>
         </ol>
-<p id="section-5.3-6">When <code>proof_type</code> is set to <code>provisional</code>, this indicates that the inclusion
+<p id="section-5.3-11">When <code>proof_type</code> is set to <code>provisional</code>, this indicates that the inclusion
 proof is against a log entry that is not yet published by the Transparency Log.
-These proofs are verified as follows:<a href="#section-5.3-6" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-5.3-7">
-<li id="section-5.3-7.1">
-            <p id="section-5.3-7.1.1">If the client advertised a <code>standard</code> tree head type, verify that
+These proofs are verified as follows:<a href="#section-5.3-11" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3-12">
+<li id="section-5.3-12.1">
+            <p id="section-5.3-12.1.1">If the client advertised a <code>standard</code> tree head type, verify that
 <code>tree_head.size</code> is greater than or equal to that of the advertised tree head.
 If the client advertised a <code>provisional</code> tree head type, verify that
 <code>tree_head.size</code> is greater than that of the advertised tree head, or that
 <code>tree_head.size</code> is equal and <code>tree_head.counter</code> is greater than that of the
-advertised tree head.<a href="#section-5.3-7.1.1" class="pilcrow">¶</a></p>
+advertised tree head.<a href="#section-5.3-12.1.1" class="pilcrow">¶</a></p>
 </li>
-          <li id="section-5.3-7.2">
-            <p id="section-5.3-7.2.1">Verify <code>combined</code> as executing the following proofs in this order:<a href="#section-5.3-7.2.1" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-5.3-7.2.2">
-<li id="section-5.3-7.2.2.1">
-                <p id="section-5.3-7.2.2.1.1">Updating the view of the tree (<span><a href="https://datatracker.ietf.org/doc/html/draft-ietf-keytrans-protocol-00#section-10.3.1" class="relref">Section 10.3.1</a> of [<a href="#KEYTRANS" class="cite xref">KEYTRANS</a>]</span>). Note that
+          <li id="section-5.3-12.2">
+            <p id="section-5.3-12.2.1">Verify <code>combined</code> as executing the following proofs in this order:<a href="#section-5.3-12.2.1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3-12.2.2">
+<li id="section-5.3-12.2.2.1">
+                <p id="section-5.3-12.2.2.1.1">Updating the view of the tree (<span><a href="https://datatracker.ietf.org/doc/html/draft-ietf-keytrans-protocol-00#section-10.3.1" class="relref">Section 10.3.1</a> of [<a href="#KEYTRANS" class="cite xref">KEYTRANS</a>]</span>). Note that
 verifying this proof step also verifies that the rightmost log entry's
-timestamp is within the bounds set by <code>max_ahead</code> and <code>max_behind</code>.<a href="#section-5.3-7.2.2.1.1" class="pilcrow">¶</a></p>
+timestamp is within the bounds set by <code>max_ahead</code> and <code>max_behind</code>.<a href="#section-5.3-12.2.2.1.1" class="pilcrow">¶</a></p>
 </li>
-              <li id="section-5.3-7.2.2.2">
-                <p id="section-5.3-7.2.2.2.1">If a provisional tree head was advertised by the client and the subsequent
+              <li id="section-5.3-12.2.2.2">
+                <p id="section-5.3-12.2.2.2.1">If a provisional tree head was advertised by the client and the subsequent
 log entry exists, then the subsequent log entry's timestamp and a
-<code>PrefixProof</code> from it are added to <code>combined</code>.<a href="#section-5.3-7.2.2.2.1" class="pilcrow">¶</a></p>
+<code>PrefixProof</code> from it are added to <code>combined</code>.<a href="#section-5.3-12.2.2.2.1" class="pilcrow">¶</a></p>
 </li>
             </ol>
 </li>
-          <li id="section-5.3-7.3">
-            <p id="section-5.3-7.3.1">The <code>sequencing</code> field must be present when a provisional tree head was
+          <li id="section-5.3-12.3">
+            <p id="section-5.3-12.3.1">The <code>sequencing</code> field must be present when a provisional tree head was
 advertised by the client and the subsequent log entry exists. The <code>sequencing</code>
 field contains the size of the Certificate Subtree and the <code>first_valid</code> and
 <code>invalid_entries</code> fields of the <code>DomainCertificates</code> structure as it exists in
-the subsequent log entry. If present:<a href="#section-5.3-7.3.1" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-5.3-7.3.2">
-<li id="section-5.3-7.3.2.1">
-                <p id="section-5.3-7.3.2.1.1">Verify that <code>sequencing.size</code> is greater than or equal to the retained size
-of the Certificate Subtree.<a href="#section-5.3-7.3.2.1.1" class="pilcrow">¶</a></p>
+the subsequent log entry. If present:<a href="#section-5.3-12.3.1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3-12.3.2">
+<li id="section-5.3-12.3.2.1">
+                <p id="section-5.3-12.3.2.1.1">Verify that <code>sequencing.size</code> is greater than or equal to the retained size
+of the Certificate Subtree.<a href="#section-5.3-12.3.2.1.1" class="pilcrow">¶</a></p>
 </li>
-              <li id="section-5.3-7.3.2.2">
-                <p id="section-5.3-7.3.2.2.1">Verify that <code>sequencing.{first_valid, invalid_entries}</code> would not unrevoke
-any previously-revoked certificates.<a href="#section-5.3-7.3.2.2.1" class="pilcrow">¶</a></p>
+              <li id="section-5.3-12.3.2.2">
+                <p id="section-5.3-12.3.2.2.1">Verify that <code>sequencing.{first_valid, invalid_entries}</code> would not unrevoke
+any previously-revoked certificates.<a href="#section-5.3-12.3.2.2.1" class="pilcrow">¶</a></p>
 </li>
             </ol>
 </li>
-          <li id="section-5.3-7.4">
-            <p id="section-5.3-7.4.1">If the <code>sequencing</code> field is present, compare the following fields in
+          <li id="section-5.3-12.4">
+            <p id="section-5.3-12.4.1">If the <code>sequencing</code> field is present, compare the following fields in
 <code>subtree</code> against those in <code>sequencing</code>; if the <code>sequencing</code> field is not
 present but the client advertised a provisional tree head, compare the fields
-against the advertised provisional tree head:<a href="#section-5.3-7.4.1" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-5.3-7.4.2">
-<li id="section-5.3-7.4.2.1">
-                <p id="section-5.3-7.4.2.1.1">Verify that <code>subtree.size</code> is greater than or equal.<a href="#section-5.3-7.4.2.1.1" class="pilcrow">¶</a></p>
+against the advertised provisional tree head:<a href="#section-5.3-12.4.1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3-12.4.2">
+<li id="section-5.3-12.4.2.1">
+                <p id="section-5.3-12.4.2.1.1">Verify that <code>subtree.size</code> is greater than or equal.<a href="#section-5.3-12.4.2.1.1" class="pilcrow">¶</a></p>
 </li>
-              <li id="section-5.3-7.4.2.2">
-                <p id="section-5.3-7.4.2.2.1">Verify that <code>subtree.{first_valid, invalid_entries}</code> would not unrevoke any
-previously-revoked certificates.<a href="#section-5.3-7.4.2.2.1" class="pilcrow">¶</a></p>
+              <li id="section-5.3-12.4.2.2">
+                <p id="section-5.3-12.4.2.2.1">Verify that <code>subtree.{first_valid, invalid_entries}</code> would not unrevoke any
+previously-revoked certificates.<a href="#section-5.3-12.4.2.2.1" class="pilcrow">¶</a></p>
 </li>
             </ol>
 </li>
-          <li id="section-5.3-7.5">
-            <p id="section-5.3-7.5.1">Verify that <code>subtree.{first_valid, invalid_entries}</code> do not exclude
-<code>subtree.position</code>.<a href="#section-5.3-7.5.1" class="pilcrow">¶</a></p>
+          <li id="section-5.3-12.5">
+            <p id="section-5.3-12.5.1">Verify that <code>subtree.{first_valid, invalid_entries}</code> do not exclude
+<code>subtree.position</code>.<a href="#section-5.3-12.5.1" class="pilcrow">¶</a></p>
 </li>
-          <li id="section-5.3-7.6">
-            <p id="section-5.3-7.6.1">Compute the root hash of the Log Tree and the root hash of the provisional
-Prefix Tree:<a href="#section-5.3-7.6.1" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-5.3-7.6.2">
-<li id="section-5.3-7.6.2.1">
-                <p id="section-5.3-7.6.2.1.1">Compute the root hash of the Certificate Subtree as it exists in the
+          <li id="section-5.3-12.6">
+            <p id="section-5.3-12.6.1">Compute the root hash of the Log Tree and the root hash of the provisional
+Prefix Tree:<a href="#section-5.3-12.6.1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3-12.6.2">
+<li id="section-5.3-12.6.2.1">
+                <p id="section-5.3-12.6.2.1.1">Compute the root hash of the Certificate Subtree as it exists in the
 provisional Prefix Tree. If the <code>sequencing</code> field is present, also compute
 the root hash of the Certificate Subtree as it exists in the subsequent log
 entry. Both of these are done by interpreting <code>subtree.inclusion</code> as a proof
@@ -2511,92 +2556,68 @@ of inclusion in the Certificate Subtree for <code>subtree.position</code>. If th
 minimum set of node hashes necessary to compute the root of the Certificate
 Subtree at size <code>sequencing.size</code>. If the client advertised a provisional
 tree head, the full subtrees of the Certificate Subtree as it existed in the
-advertised tree head are assumed to be known and will not be repeated.<a href="#section-5.3-7.6.2.1.1" class="pilcrow">¶</a></p>
+advertised tree head are assumed to be known and will not be repeated.<a href="#section-5.3-12.6.2.1.1" class="pilcrow">¶</a></p>
 </li>
-              <li id="section-5.3-7.6.2.2">
-                <p id="section-5.3-7.6.2.2.1">With the root hash of the Certificate Subtree and the other fields in
+              <li id="section-5.3-12.6.2.2">
+                <p id="section-5.3-12.6.2.2.1">With the root hash of the Certificate Subtree and the other fields in
 <code>subtree</code>, compute the Prefix Tree leaf hash for the provisional Prefix
 Tree. If the <code>sequencing</code> field is present, use the fields of <code>sequencing</code>
-to compute the Prefix Tree leaf hash for the subsequent log entry.<a href="#section-5.3-7.6.2.2.1" class="pilcrow">¶</a></p>
+to compute the Prefix Tree leaf hash for the subsequent log entry.<a href="#section-5.3-12.6.2.2.1" class="pilcrow">¶</a></p>
 </li>
-              <li id="section-5.3-7.6.2.3">
-                <p id="section-5.3-7.6.2.3.1">Compute the root hash of the Log Tree with <code>combined</code> (which may require the
+              <li id="section-5.3-12.6.2.3">
+                <p id="section-5.3-12.6.2.3.1">Compute the root hash of the Log Tree with <code>combined</code> (which may require the
 Prefix Tree leaf hash for the subsequent log entry). Note that the full
 subtrees of the Log Tree advertised by the client are assumed to already be
-known and will not be repeated.<a href="#section-5.3-7.6.2.3.1" class="pilcrow">¶</a></p>
+known and will not be repeated.<a href="#section-5.3-12.6.2.3.1" class="pilcrow">¶</a></p>
 </li>
-              <li id="section-5.3-7.6.2.4">
-                <p id="section-5.3-7.6.2.4.1">With the provisional Prefix Tree leaf hash and the proof in <code>prefix</code>,
-compute the provisional Prefix Tree root hash.<a href="#section-5.3-7.6.2.4.1" class="pilcrow">¶</a></p>
+              <li id="section-5.3-12.6.2.4">
+                <p id="section-5.3-12.6.2.4.1">With the provisional Prefix Tree leaf hash and the proof in <code>prefix</code>,
+compute the provisional Prefix Tree root hash.<a href="#section-5.3-12.6.2.4.1" class="pilcrow">¶</a></p>
 </li>
             </ol>
 </li>
-          <li id="section-5.3-7.7">
-            <p id="section-5.3-7.7.1">Verify the signature in <code>tree_head.signature</code>.<a href="#section-5.3-7.7.1" class="pilcrow">¶</a></p>
+          <li id="section-5.3-12.7">
+            <p id="section-5.3-12.7.1">Verify the signature in <code>tree_head.signature</code>.<a href="#section-5.3-12.7.1" class="pilcrow">¶</a></p>
 </li>
         </ol>
-<p id="section-5.3-8">When <code>proof_type</code> is set to <code>same_standard</code>, this indicates that the inclusion
+<p id="section-5.3-13">When <code>proof_type</code> is set to <code>same_standard</code>, this indicates that the inclusion
 proof is against the same tree head that was specified in the
 <code>SupportedTransparencyLog</code> structure for the chosen Transparency Log. These
-proofs are verified as follows:<a href="#section-5.3-8" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-5.3-9">
-<li id="section-5.3-9.1">
-            <p id="section-5.3-9.1.1">Verify that the client advertised a standard tree head type for the chosen
-Transparency Log.<a href="#section-5.3-9.1.1" class="pilcrow">¶</a></p>
+proofs are verified as follows:<a href="#section-5.3-13" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3-14">
+<li id="section-5.3-14.1">
+            <p id="section-5.3-14.1.1">Verify that the client advertised a standard tree head type for the chosen
+Transparency Log.<a href="#section-5.3-14.1.1" class="pilcrow">¶</a></p>
 </li>
-          <li id="section-5.3-9.2">
-            <p id="section-5.3-9.2.1">For the advertised tree head, verify that the rightmost log entry's timestamp
-is within the bounds set by <code>max_ahead</code> and <code>max_behind</code>.<a href="#section-5.3-9.2.1" class="pilcrow">¶</a></p>
+          <li id="section-5.3-14.2">
+            <p id="section-5.3-14.2.1">For the advertised tree head, verify that the rightmost log entry's timestamp
+is within the bounds set by <code>max_ahead</code> and <code>max_behind</code>.<a href="#section-5.3-14.2.1" class="pilcrow">¶</a></p>
 </li>
-          <li id="section-5.3-9.3">
-            <p id="section-5.3-9.3.1">Verify that <code>subtree.{first_valid, invalid_entries}</code> do not exclude
-<code>subtree.position</code>.<a href="#section-5.3-9.3.1" class="pilcrow">¶</a></p>
+          <li id="section-5.3-14.3">
+            <p id="section-5.3-14.3.1">Verify that <code>subtree.{first_valid, invalid_entries}</code> do not exclude
+<code>subtree.position</code>.<a href="#section-5.3-14.3.1" class="pilcrow">¶</a></p>
 </li>
-          <li id="section-5.3-9.4">
-            <p id="section-5.3-9.4.1">Compute the root hash of the Prefix Tree and verify that it matches the
-retained value:<a href="#section-5.3-9.4.1" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-5.3-9.4.2">
-<li id="section-5.3-9.4.2.1">
-                <p id="section-5.3-9.4.2.1.1">Compute the root hash of the Certificate Subtree by interpreting
+          <li id="section-5.3-14.4">
+            <p id="section-5.3-14.4.1">Compute the root hash of the Prefix Tree and verify that it matches the
+retained value:<a href="#section-5.3-14.4.1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3-14.4.2">
+<li id="section-5.3-14.4.2.1">
+                <p id="section-5.3-14.4.2.1.1">Compute the root hash of the Certificate Subtree by interpreting
 <code>subtree.inclusion</code> as an inclusion proof from the Certificate Subtree for
-the log entry at <code>subtree.position</code>.<a href="#section-5.3-9.4.2.1.1" class="pilcrow">¶</a></p>
+the log entry at <code>subtree.position</code>.<a href="#section-5.3-14.4.2.1.1" class="pilcrow">¶</a></p>
 </li>
-              <li id="section-5.3-9.4.2.2">
-                <p id="section-5.3-9.4.2.2.1">With the root hash of the Certificate Subtree and the other fields in
-<code>subtree</code>, compute the Prefix Tree leaf hash.<a href="#section-5.3-9.4.2.2.1" class="pilcrow">¶</a></p>
+              <li id="section-5.3-14.4.2.2">
+                <p id="section-5.3-14.4.2.2.1">With the root hash of the Certificate Subtree and the other fields in
+<code>subtree</code>, compute the Prefix Tree leaf hash.<a href="#section-5.3-14.4.2.2.1" class="pilcrow">¶</a></p>
 </li>
-              <li id="section-5.3-9.4.2.3">
-                <p id="section-5.3-9.4.2.3.1">With the Prefix Tree leaf hash and the proof in <code>prefix</code>, compute the Prefix
-Tree root hash.<a href="#section-5.3-9.4.2.3.1" class="pilcrow">¶</a></p>
+              <li id="section-5.3-14.4.2.3">
+                <p id="section-5.3-14.4.2.3.1">With the Prefix Tree leaf hash and the proof in <code>prefix</code>, compute the Prefix
+Tree root hash.<a href="#section-5.3-14.4.2.3.1" class="pilcrow">¶</a></p>
 </li>
             </ol>
 </li>
         </ol>
-<p id="section-5.3-10">When <code>proof_type</code> is set to <code>same_provisional</code>, this indicates that the
-inclusion proof is against the same provisional tree head that was previously
-provided by the server. These proofs are verified as follows:<a href="#section-5.3-10" class="pilcrow">¶</a></p>
-<ol start="1" type="1" class="normal type-1" id="section-5.3-11">
-<li id="section-5.3-11.1">
-            <p id="section-5.3-11.1.1">Verify that the client advertised a provisional tree head type for the chosen
-Transparency Log.<a href="#section-5.3-11.1.1" class="pilcrow">¶</a></p>
-</li>
-          <li id="section-5.3-11.2">
-            <p id="section-5.3-11.2.1">For the advertised tree head, verify that the rightmost log entry's timestamp
-is within the bounds set by <code>max_ahead</code> and <code>max_behind</code>.<a href="#section-5.3-11.2.1" class="pilcrow">¶</a></p>
-</li>
-          <li id="section-5.3-11.3">
-            <p id="section-5.3-11.3.1">Verify that the previously-retained <code>first_valid</code> and <code>invalid_entries</code> fields
-do not exclude <code>position</code>.<a href="#section-5.3-11.3.1" class="pilcrow">¶</a></p>
-</li>
-          <li id="section-5.3-11.4">
-            <p id="section-5.3-11.4.1">Compute the root hash of the Certificate Subtree by interpreting <code>inclusion</code>
-as an inclusion proof from the Certificate Subtree for the log entry at
-<code>position</code>. The full subtrees are assumed to already be known, meaning they
-will not be repeated. Verify that the computed value matches the retained
-value.<a href="#section-5.3-11.4.1" class="pilcrow">¶</a></p>
-</li>
-        </ol>
-<p id="section-5.3-12">As was mentioned in <a href="#structure" class="auto internal xref">Section 4.1</a>, the entire certificate chain that will be
+<p id="section-5.3-15">As was mentioned in <a href="#structure" class="auto internal xref">Section 4.1</a>, the entire certificate chain that will be
 presented by the server is stored in the leaf of the Certificate Subtree. If the
 server presents a different certificate chain to the client than was logged in
 the Transparency Log (for example by including or omitting intermediates), the
@@ -2606,15 +2627,15 @@ instead of just the leaf, prevents the possibility of unlogged intermediate
 certificates. That is, it prevents the possibility of a leaf certificate being
 logged with a chain to a testing (or otherwise untrusted) trust anchor, and then
 being presented in TLS connections with additional intermediates that connect it
-to a different trust anchor.<a href="#section-5.3-12" class="pilcrow">¶</a></p>
-<p id="section-5.3-13">Similarly, the reference identifier for the leaf certificate (the
+to a different trust anchor.<a href="#section-5.3-15" class="pilcrow">¶</a></p>
+<p id="section-5.3-16">Similarly, the reference identifier for the leaf certificate (the
 domain or IP address) determines where in the Prefix Tree the Transparency Log
 stores the certificate chain. If the server attempts to present the certificate
 for a different reference identifier, the client will be unable to verify the
 proof. However, the ability of clients to enforce that certificates are organized
 into the Transparency Log correctly is the core reason that Site Operators don't
 need to download the entire contents of the Transparency Log to find all
-certificates that are relevant to them.<a href="#section-5.3-13" class="pilcrow">¶</a></p>
+certificates that are relevant to them.<a href="#section-5.3-16" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
@@ -2647,8 +2668,8 @@ should advertise in its ClientHello only <code>provisional</code> tree head type
 rightmost log entry has a timestamp more than <code>max_behind</code> milliseconds in the
 past. If the connection succeeds, any certificate the server responds with will
 necessarily provide the information the client needs to purge a
-previously-observed provisional inclusion proof from its state. Any additional
-provisional inclusion proof provided by the server in such a connection should
+previously observed provisional inclusion proof from its state. Any additional
+provisional inclusion proof provided by the server in such a connection <span class="bcp14">SHOULD</span>
 be disregarded, rather than triggering new state to be stored.<a href="#section-6.1-1" class="pilcrow">¶</a></p>
 </section>
 </div>
@@ -2723,8 +2744,7 @@ a superseding provisional inclusion proof, or been shown to be included in the
 subsequent log entry:<a href="#section-7.1-2.2.1" class="pilcrow">¶</a></p>
 <ul class="normal">
 <li class="normal" id="section-7.1-2.2.2.1">
-                <p id="section-7.1-2.2.2.1.1">The domain or IP address of the host that presented the
-provisional proof.<a href="#section-7.1-2.2.2.1.1" class="pilcrow">¶</a></p>
+                <p id="section-7.1-2.2.2.1.1">The domain or IP address of the host that presented the provisional proof.<a href="#section-7.1-2.2.2.1.1" class="pilcrow">¶</a></p>
 </li>
               <li class="normal" id="section-7.1-2.2.2.2">
                 <p id="section-7.1-2.2.2.2.1">The ProvisionalTreeHead structure.<a href="#section-7.1-2.2.2.2.1" class="pilcrow">¶</a></p>
@@ -2733,15 +2753,18 @@ provisional proof.<a href="#section-7.1-2.2.2.1.1" class="pilcrow">¶</a></p>
                 <p id="section-7.1-2.2.2.3.1">The full subtrees of the Log Tree, as presented in the provisional proof.<a href="#section-7.1-2.2.2.3.1" class="pilcrow">¶</a></p>
 </li>
               <li class="normal" id="section-7.1-2.2.2.4">
-                <p id="section-7.1-2.2.2.4.1">The <code>size</code>, <code>first_valid</code>, and <code>invalid_entries</code> fields of the
-<code>SubtreeInclusionProof</code> structure.<a href="#section-7.1-2.2.2.4.1" class="pilcrow">¶</a></p>
+                <p id="section-7.1-2.2.2.4.1">The authenticated reference identifiers<a href="#section-7.1-2.2.2.4.1" class="pilcrow">¶</a></p>
 </li>
               <li class="normal" id="section-7.1-2.2.2.5">
-                <p id="section-7.1-2.2.2.5.1">The full subtrees of the Certificate Subtree.<a href="#section-7.1-2.2.2.5.1" class="pilcrow">¶</a></p>
+                <p id="section-7.1-2.2.2.5.1">The <code>size</code>, <code>first_valid</code>, and <code>invalid_entries</code> fields of each
+<code>SubtreeInclusionProof</code> structure.<a href="#section-7.1-2.2.2.5.1" class="pilcrow">¶</a></p>
 </li>
               <li class="normal" id="section-7.1-2.2.2.6">
-                <p id="section-7.1-2.2.2.6.1">The bearer token and pre-shared key associated with the provisional
-inclusion proof.<a href="#section-7.1-2.2.2.6.1" class="pilcrow">¶</a></p>
+                <p id="section-7.1-2.2.2.6.1">The full subtrees of each Certificate Subtree.<a href="#section-7.1-2.2.2.6.1" class="pilcrow">¶</a></p>
+</li>
+              <li class="normal" id="section-7.1-2.2.2.7">
+                <p id="section-7.1-2.2.2.7.1">The bearer token and pre-shared key associated with the provisional
+inclusion proof.<a href="#section-7.1-2.2.2.7.1" class="pilcrow">¶</a></p>
 </li>
             </ul>
 </li>
