@@ -619,10 +619,10 @@ opaque ReferenceId<0..2^8-1>;
 
 struct {
   uint64 tree_size;
-  uint32 subtree_sizes<0..2^8-1>;
+  uint32 subtree_sizes<1..2^8-1>;
 
-  ReferenceId reference_ids<0..2^8-1>;
-  Certificate chain<0..2^8-1>;
+  ReferenceId reference_ids<1..2^8-1>;
+  Certificate chain<1..2^8-1>;
   opaque signature<0..2^16-1>;
 } AddChainRequest;
 
@@ -633,7 +633,7 @@ struct {
       ProvisionalTreeHead tree_head;
       CombinedTreeProof combined;
       PrefixProof prefix;
-      SubtreeInclusionProof subtree<0..2^8-1>;
+      SubtreeInclusionProof subtree<1..2^8-1>;
   }
   BearerToken bearer_token;
 } AddChainResponse;
@@ -694,7 +694,7 @@ GET /refresh-proof?bearer_token=X&position=Y
 ~~~ tls-presentation
 struct {
   PrefixProof prefix;
-  SubtreeInclusionProof subtree<0..2^8-1>;
+  SubtreeInclusionProof subtree<1..2^8-1>;
 } RefreshProofResponse;
 ~~~
 
@@ -871,18 +871,20 @@ struct {
   select (SupportedTransparencyLog.tree_head_type) {
     case standard:
       uint64 tree_size;
-    case provisional:
-      BearerToken bearer_token;
-  }
+  };
 } SupportedTransparencyLog;
 
 struct {
   SupportedTransparencyLog supported<0..2^8-1>;
+  select (any supported[i].tree_head_type is provisional) {
+    case true:
+      BearerToken bearer_token;
+  }
 } TransparencyRequest;
 ~~~
 
 The extension has type "transparency_revocation" and consists of a serialized
-`TransparencyRequest` structure in the "extension_data" field.
+`TransparencyRequest` structure in the `extension_data` field.
 
 Clients include an entry in the `supported` array for each Transparency Log
 that they support receiving inclusion proofs from, containing the Transparency
@@ -890,18 +892,19 @@ Log's assigned unique identifier in `transparency_log_id`. The `supported` array
 MUST be sorted in ascending order by `transparency_log_id`, and each
 `transparency_log_id` MUST only be advertised once.
 
-If the client was shown a provisional inclusion proof in a previous
-connection to the server, then they will have also received a bearer token and a
-pre-shared key. For as long as the client has not yet seen the provisional
-proof integrated into the subsequent log entry, and as long as the rightmost log
-entry's timestamp is less than or equal to `10*max_behind` milliseconds in the
-past, the client advertises a `provisional` tree head type and includes the
-provided bearer token in `bearer_token`. If the server indicates the
-Transparency Log in its ServerHello extension, the client will set the PSK
-input to the TLS key schedule to be the pre-shared key.
+If a client was shown a provisional inclusion proof from a Transparency Log in a
+previous connection to the server, the client sets `tree_head_type` to be
+`provisional` for that Transparency Log's entry in `supported` until one of the
+following conditions is met:
 
-Clients that do not need to resolve a provisional inclusion proof advertise
-a `standard` tree head type. The `tree_size` field is set as follows:
+1. The client receives proof that the provisional proof was integrated into the
+   subsequent log entry, or:
+2. The timestamp of the rightmost log entry that existed in the provisional
+   inclusion proof is more than `10*max_behind` milliseconds in the past.
+
+For Transparency Logs where the client does not need to resolve a provisional
+inclusion proof, `tree_head_type` is set to `standard`. The `tree_size` field is
+set as follows:
 
 - If the client is aware of two consecutive log entries where the timestamp
   of the left log entry is greater than `max_behind` milliseconds in the past
@@ -920,6 +923,12 @@ oldest `tree_size` that a server could provide an inclusion proof against
 without it being expired. If the client is unable to do this, the second
 criteria aims to advertise a `tree_size` that's old enough that it would not be
 de-anonymizing, but not so old that servers are unaware of it.
+
+If the `tree_head_type` of any SupportedTransparencyLog structure is set to
+`provisional`, then a bearer token is provided in `bearer_token`. The bearer
+token to use is provided by the server in a previous connection. The same bearer
+token MAY be advertised in multiple ClientHello messages but clients SHOULD take
+care to minimize the likelihood of this.
 
 ## ServerHello
 
@@ -944,6 +953,8 @@ Transparency Log:
 uint16 transparency_log_id;
 ~~~
 
+<!-- TODO: More information on client PSK -->
+
 ## Certificate
 
 The server provides an inclusion proof for its certificate chain by adding
@@ -956,8 +967,7 @@ enum {
   reserved(0),
   standard(1),
   provisional(2),
-  same_standard(3),
-  same_provisional(4),
+  same_head(3),
   (255)
 } TransparencyProofType;
 
@@ -972,9 +982,9 @@ struct {
   CombinedTreeProof combined;
   select (condition) {
     case true:
-      SequencingProof sequencing;
+      SequencingProof sequencing<1..2^8-1>;
   }
-  SubtreeInclusionProof subtree;
+  SubtreeInclusionProof subtree<1..2^8-1>;
 } StandardProof;
 
 struct {
@@ -982,28 +992,21 @@ struct {
   CombinedTreeProof combined;
   select (condition) {
     case true:
-      SequencingProof sequencing;
+      SequencingProof sequencing<1..2^8-1>;
   }
 
   PrefixProof prefix;
-  SubtreeInclusionProof subtree;
-
-  BearerToken bearer_token;
-  opaque pre_shared_key<16>;
+  SubtreeInclusionProof subtree<1..2^8-1>;
 } ProvisionalProof;
 
 struct {
   PrefixProof prefix;
-  SubtreeInclusionProof subtree;
-} SameStandardProof;
-
-struct {
-  uint32 position;
-  InclusionProof inclusion;
-} SameProvisionalProof;
+  SubtreeInclusionProof subtree<1..2^8-1>;
+} SameHeadProof;
 
 struct {
   uint16 transparency_log_id;
+  uint8 reference_ids<1..2^8-1>;
 
   TransparencyProofType proof_type;
   select(TransparencyProof.proof_type) {
@@ -1011,20 +1014,57 @@ struct {
       StandardProof proof;
     case provisional:
       ProvisionalProof proof;
-    case same_standard:
-      SameStandardProof proof;
-    case same_provisional:
-      SameProvisionalProof proof;
+    case same_head:
+      SameHeadProof proof;
   };
+
+  select (condition) {
+    case true:
+      BearerToken bearer_token;
+      opaque pre_shared_key<Npsk>;
+  }
 } TransparencyProof;
 ~~~
 
 The `transparency_log_id` field specifies the Transparency Log that the proof
-comes from, while the `proof_type` field specifies the type of proof that
-follows. Clients first verify that the Certificate Authority that issued the
-presented certificate chain, and the Transparency Log identified by
-`transparency_log_id`, are operated by different organizations. Verification
-then proceeds as follows, based on `proof_type`:
+comes from. The `reference_ids` field specifies the set of reference identifiers
+that the proof will cover, specified as a zero-indexed offset into the leaf
+certificate's subjectAltName extension. The `proof_type` field specifies the
+type of proof that follows.
+
+If any of the following conditions are true, then the `bearer_token` and
+`pre_shared_key` fields are present:
+
+1. `proof_type` is set to `provisional`,
+2. A provisional tree head type was advertised in the ClientHello for any
+   Transparency Log other than that identified by `transparency_log_id`,
+3. A provisional tree head type was advertised in the ClientHello for the
+   Transparency Log identified by `transparency_log_id` and `proof_type` is set
+   to `same_head`.
+
+<!-- TODO: I would like to specify that the Certificate Authority and the
+     Transparency Log must be operated by different organizations, but this
+     doesn't seem possible in a straightforward way because of cross-signs. -->
+
+Clients verify that the `reference_ids` field is sorted in ascending order,
+contains at least one entry, contains no duplicates, and that each index
+corresponds to a domain name or IP address in the leaf certificate's
+subjectAltName extension. Clients MUST NOT trust a connection for any name other
+than those in `reference_ids`.
+
+Clients prepare a list, referred to as the **Current Authenticated Search
+Keys**, that contains the corresponding Prefix Tree search key for each
+reference identifier in `reference_ids`. This list is de-duplicated and stored
+in ascending lexicographic order. If the client advertised a provisional tree
+head type for the chosen Transparency Log, the client additionally prepares a
+list referred to as the **Past Authenticated Search Keys**. This list contains
+the union of every Current Authenticated Search Keys list from past connections
+where a provisional proof was presented and the provisional proof has not yet
+been proven consistent with the **subsequent log entry** (defined as the first
+log entry sequenced after the provisional tree head was created). This list is
+also de-duplicated and stored in ascending lexicographic order.
+
+Verification proceeds as follows, based on `proof_type`:
 
 When `proof_type` is set to `standard`, this indicates that the inclusion proof
 is against a log entry that is currently published by the Transparency Log but
@@ -1033,26 +1073,43 @@ follows:
 
 1. Verify that `tree_head.size` is greater than the size of the tree head
    advertised by the client.
+
 2. Verify `combined` as executing the following proofs in this order:
+
    1. Updating the view of the tree ({{Section 10.3.1 of KEYTRANS}}). Note that
       verifying this proof step also verifies that the rightmost log entry's
       timestamp is within the bounds set by `max_ahead` and `max_behind`.
-   2. If a provisional tree head was advertised by the client and the subsequent
-      log entry is not the rightmost log entry, then the subsequent log entry's
-      timestamp and a `PrefixProof` from it are added to `combined`. (The
-      **subsequent log entry** is defined as the first log entry sequenced after
-      the provisional tree head was created.)
-   3. Finally, a `PrefixProof` from the rightmost log entry is added to
-      `combined`.
-3. The `sequencing` field must be present when a provisional tree head was
-   advertised by the client and the subsequent log entry is not the rightmost log
-   entry. The `sequencing` field contains the size of the Certificate Subtree
-   and the `first_valid` and `invalid_entries` fields of the `DomainCertificates`
-   structure as it exists in the subsequent log entry. If present:
-   1. Verify that `sequencing.size` is greater than or equal to the retained size
-      of the Certificate Subtree.
-   2. Verify that `sequencing.{first_valid, invalid_entries}` would not unrevoke
-      any previously-revoked certificates.
+
+   2. The client requires a `PrefixProof` from the rightmost log entry for the
+      Current Authenticated Search Keys. If the client advertised a provisional
+      tree head type for the chosen Transparency Log, the client additionally
+      requires a `PrefixProof` from the subsequent log entry for the Past
+      Authenticated Search Keys.
+
+      If the rightmost log entry and the subsequent log entry are the same, then
+      only one `PrefixProof` for the union of the two lists is provided in
+      `combined`. Otherwise, a `PrefixProof` from the rightmost log entry is
+      provided, and a second `PrefixProof` from the subsequent log entry is
+      provided along with the subsequent log entry's timestamp.
+
+3. If the client advertised a provisional tree head type for the chosen
+   Transparency Log, the client prepares a list referred to as the **Sequenced
+   Search Keys**. This list is initially set to be equal to the Past
+   Authenticated Search Keys list. If the subsequent log entry is the same as
+   the rightmost log entry, the Sequenced Search Keys list is updated to remove
+   entries which are contained in the Current Authenticated Search Keys list.
+
+   If this list is not empty, the `sequencing` field is expected to be present.
+   Each entry in the `sequencing` field corresponds to each entry in the
+   Sequenced Search Keys list. Each SequencingProof structure contains size of
+   the Certificate Subtree for the given search key, and the `first_valid` and
+   `invalid_entries` fields of its `DomainCertificates` structure as it exists
+   in the subsequent log entry. Clients verify that:
+   1. `sequencing.size` is greater than or equal to the retained size of the
+      Certificate Subtree.
+   2. `sequencing.{first_valid, invalid_entries}` would not unrevoke any
+      previously revoked certificates.
+
 4. If the `sequencing` field is present, compare the following fields in
    `subtree` against those in `sequencing`; if the `sequencing` field is not
    present but the client advertised a provisional tree head, compare the fields
@@ -1162,7 +1219,7 @@ proofs are verified as follows:
    3. With the Prefix Tree leaf hash and the proof in `prefix`, compute the Prefix
       Tree root hash.
 
-When `proof_type` is set to `same_provisional`, this indicates that the
+<!-- When `proof_type` is set to `same_provisional`, this indicates that the
 inclusion proof is against the same provisional tree head that was previously
 provided by the server. These proofs are verified as follows:
 
@@ -1176,7 +1233,7 @@ provided by the server. These proofs are verified as follows:
    as an inclusion proof from the Certificate Subtree for the log entry at
    `position`. The full subtrees are assumed to already be known, meaning they
    will not be repeated. Verify that the computed value matches the retained
-   value.
+   value. -->
 
 As was mentioned in {{structure}}, the entire certificate chain that will be
 presented by the server is stored in the leaf of the Certificate Subtree. If the
@@ -1223,8 +1280,8 @@ should advertise in its ClientHello only `provisional` tree head types where the
 rightmost log entry has a timestamp more than `max_behind` milliseconds in the
 past. If the connection succeeds, any certificate the server responds with will
 necessarily provide the information the client needs to purge a
-previously-observed provisional inclusion proof from its state. Any additional
-provisional inclusion proof provided by the server in such a connection should
+previously observed provisional inclusion proof from its state. Any additional
+provisional inclusion proof provided by the server in such a connection SHOULD
 be disregarded, rather than triggering new state to be stored.
 
 ## Oblivious Third Party
@@ -1269,13 +1326,13 @@ Clients retain the following state:
 - For each provisional inclusion proof observed that has not been replaced with
   a superseding provisional inclusion proof, or been shown to be included in the
   subsequent log entry:
-  - The domain or IP address of the host that presented the
-    provisional proof.
+  - The domain or IP address of the host that presented the provisional proof.
   - The ProvisionalTreeHead structure.
   - The full subtrees of the Log Tree, as presented in the provisional proof.
-  - The `size`, `first_valid`, and `invalid_entries` fields of the
+  - The authenticated reference identifiers
+  - The `size`, `first_valid`, and `invalid_entries` fields of each
     `SubtreeInclusionProof` structure.
-  - The full subtrees of the Certificate Subtree.
+  - The full subtrees of each Certificate Subtree.
   - The bearer token and pre-shared key associated with the provisional
     inclusion proof.
 
