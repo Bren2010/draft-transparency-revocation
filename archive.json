@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2025-05-11T00:24:53.056814+00:00",
+  "timestamp": "2025-05-18T00:25:19.624151+00:00",
   "repo": "Bren2010/draft-transparency-revocation",
   "labels": [
     {
@@ -109,7 +109,7 @@
       "labels": [],
       "body": "The current draft envisages that website operators interact directly with log operators, including PoP of the signing key of their leaf certificate and the use of a bearer token to authenticate future interactions. This is quite different from the existing WebPKI architecture, where websites interact with their CA and typically use an existing standard like ACME to do it.\n\nCondensing CAs and log operators into the same role, which implies that \"logging is issuance\" has a number of upsides: \n - Less complexity for website operators. \n - Certificates naturally live in a single log\n - The entity issuing certificates is also responsible for the bandwidth around their monitoring. \n - Logs don't need to grow at the rate of the WebPKI, they can instead grow at their own rate (e.g. throttling their own issuance to what their log can keep up with).\n\nBy itself, this would violate the current design goal of needing at least two colluding parties in order to defeat the transparency property, so would motivate the need for independent witnesses. ",
       "createdAt": "2025-04-28T22:51:26Z",
-      "updatedAt": "2025-05-01T16:14:51Z",
+      "updatedAt": "2025-05-15T14:42:55Z",
       "closedAt": null,
       "comments": [
         {
@@ -132,6 +132,13 @@
           "body": "> This suggests that all revocation logs need to run at the speed of the WebPKI and need to keep up.\n\nEvery log does not need to keep up with the issuance rate of the webPKI. They just need to be aware of all revocations, which are much less frequent. Most revocations that a log becomes aware of will never warrant the log actually doing anything unless the certificate is submitted (in which case it needs to reject or log as marked revoked).\n\n> It's possible this could be managed outside of the log itself, e.g. with logs promising to scrape CRLs and using them to reject new submissions, but then correct behavior becomes hard to verify and we're losing transparency.\n\nHow are we losing transparency? Site operators can still see perfectly well what acceptable certificates exist for their domains. If a Transparency Log doesn't mark a certificate as revoked when it should be, that's very obvious.\n\n> Getting some horizontal scaling back means being able to shard logs so that not every certificate is in every log.\n\nThe document is already designed to be sharded such that certificates never need to be logged multiple times unless a log has an outage.\n\n",
           "createdAt": "2025-05-01T16:14:50Z",
           "updatedAt": "2025-05-01T16:14:50Z"
+        },
+        {
+          "author": "dennisjackson",
+          "authorAssociation": "COLLABORATOR",
+          "body": "**Part 1: Log Ingestion** \n\nAs you pointed out and we discussed, there's no need for every log to have every certificate, but we do need to know that every log that would in theory accept a given certificate would refuse to. This is allowed purely for policy reasons, e.g. a log that only wishes to serve a subset of CAs, but is also required if the certificate in question has been revoked and not yet submitted to the log. We expect that CAs will provision TLS servers with a list of suitable logs, we don't expect subscribers to have individual relationships with particular logs. \n\n**TODO(djackson)** Clarify these operational aspects in the text. \n\n**Part 2: Revocation 'Transparency'**\n\nI described this setup as missing out on some transparency, but I think it would be more proper to describe it as missing some accountability. Existing CT log operators were intended to be trustless - insofar as the intention was to be able to externally measure whether they were doing a good job and so hold them accountable accordingly. \n\nIn this draft/system, we have CAs that revoke a certificate by adding it to a signed CRL. Log operators then need to consume the CRL so they know not to accept any revoked certificates (if they did, it would have the effect of unrevoking the cert). However, it is possible for a CA to present different views of a CRL to two different log operators. If this happens, we'd have no easy to determine whether the CA or the log was to blame. \n\nI don't know that we necessarily need to fix the accountability as part of this solution, we could instead migrate each CRL to be an append-only log, but having some accountable ground-truth for when a certificate was first revoked would be valuable. ",
+          "createdAt": "2025-05-15T14:42:05Z",
+          "updatedAt": "2025-05-15T14:42:55Z"
         }
       ]
     },
@@ -163,6 +170,30 @@
           "body": "My thought was to explain this explicitly in Performance Considerations. Should be a fairly small PR but I didn't want it to get lost. ",
           "createdAt": "2025-04-30T12:50:10Z",
           "updatedAt": "2025-04-30T12:50:10Z"
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "id": "I_kwDONGZggs62xdoS",
+      "title": "Branch for supporting SANs",
+      "url": "https://github.com/Bren2010/draft-transparency-revocation/issues/6",
+      "state": "OPEN",
+      "author": "dennisjackson",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "Re: [brendan/feeback](https://github.com/Bren2010/draft-transparency-revocation/compare/main...brendan/feedback) branch. \n\n(Opening this to put the feedback somewhere durable and isolated) \n\nIt looks reasonable at first glance, but I still need to spend some more time with how the monitoring of this actually works. Some minor thoughts that came to me during my readthrough: \n\n- The new key scheme for the prefix tree is very similar to the one I considered for Starlit Jellyfish. I think its possible for an attacker to register domains which share prefixes of a target domain in order to make path lengths longer by registering domains with common prefixes of popular domains. I haven't thought through how severe the impact actually is as to whether its worth doing, but it could be mitigated if each component in a domain was hashed and the result concatenated (e.g. `h(com)||h(facebook)||h(www)`)\n\n- I haven't reread the BRs lately but I don't think the number of SANs in a certificate is bounded. 256 is probably a reasonable practical limit but right now you can put 1000 or 10,000 SANs in a certificate if you so wish (bounded by the maximums size of a cert chain in TLS). \n\n- Fwiw [Certificate Frames](https://httpwg.org/http-extensions/draft-ietf-httpbis-secondary-server-certs.html) and [Origin Frames](https://httpwg.org/specs/rfc9412.html) are attempts to make connection coalescing work without the need to create a single TLS cert which covers all the coalesced domains. But not sure they'll ever be widely deployed enough to be a true solution.  ",
+      "createdAt": "2025-05-15T14:20:57Z",
+      "updatedAt": "2025-05-15T16:35:56Z",
+      "closedAt": null,
+      "comments": [
+        {
+          "author": "Bren2010",
+          "authorAssociation": "OWNER",
+          "body": "> The new key scheme for the prefix tree is very similar to the one I considered for Starlit Jellyfish. I think its possible for an attacker to register domains which share prefixes of a target domain in order to make path lengths longer by registering domains with common prefixes of popular domains.\n\nYes, this is an issue with the text as written. The paths forward that I see here are either adding a full description of a balanced prefix tree to this draft, or arguing for balancing the prefix tree in KT.",
+          "createdAt": "2025-05-15T16:35:55Z",
+          "updatedAt": "2025-05-15T16:35:55Z"
         }
       ]
     }
