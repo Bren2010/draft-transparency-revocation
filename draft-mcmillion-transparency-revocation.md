@@ -130,7 +130,7 @@ have been stymied by lack of support in popular web servers.
 More recent alternatives like CRLSets {{CRLSets}}, CRLite {{CRLite}}, and
 Clubcards {{Clubcards}} provide fail-closed revocation checks to clients, but
 are unstandardized, rely on trusting the server operator (who is typically a
-client vendor, rather than a CA) and offer limited transparency properties.
+client software vendor, rather than a CA) and offer limited transparency properties.
 
 This motivates a need for a new system of publishing certificates that's
 resistant to collusion and dramatically more efficient to operate, and a need
@@ -168,7 +168,7 @@ are allowed to assume multiple roles.
 
 **Site Operator:**
 : The individual or organization responsible for operating and maintaining
-  a website, as identified by a single domain name or IP address.
+  a website, as identified by a set of domain names or IP addresses.
 
 **User Agent:**
 : A software application, typically but not necessarily a web browser, that acts
@@ -289,7 +289,7 @@ prolonged CA outage would have the effect of revoking all certificates and
 causing a cascading outage, violating requirement 4. Proposals for revocation
 that fall into this category have historically mitigated this risk by providing
 very slow revocation, bounded by the longest conceivable outage that a CA may
-have (typically at least one week). However, it's clear that the same potential
+have (typically at least one week). Additionally, it's clear that the same potential
 for split-view attacks would still exist, as discussed above.
 
 When specifically considering short-lived certificates as an approach to
@@ -335,7 +335,7 @@ cost, Site Operators have overwhelmingly elected not to do this work themselves
 and have instead outsourced it to third-party monitors. Third-party monitors
 represent a problematic break in the security guarantees of Certificate
 Transparency as there are no enforceable requirements on their behavior. They
-are not audited for correct behavior like Certificate Authorities are and there
+are not audited for correct behavior like Certificate Authorities are, and there
 are no technical mechanisms to prevent misbehavior like a Transparency Log would
 have.
 
@@ -349,8 +349,11 @@ Due to the significantly reduced need for outbound bandwidth, operating
 such a Transparency Log would cost roughly one million times less than it would
 if Site Operators were required to download the log's entire contents.
 
-While the protocol described in {{KEYTRANS}} could be applied directly, some
-optimizations and simplifications specific to the web PKI are provided in
+Transparency Logs may still choose to allow parties to download their entire
+contents. However, this is not necessary for the protocol to be secure and this
+document doesn't prescribe a specific mechanism for it. Additionally, while the
+protocol described in {{KEYTRANS}} could be applied directly, some optimizations
+and simplifications specific to the web PKI are provided in
 {{transparency-log}}.
 
 ## Summary
@@ -382,38 +385,23 @@ The remainder of this document describes these steps in more detail.
 
 # Transparency Log
 
-Transparency Logs are online services that maintain a tree data structure and
-provide access to it through the endpoints described below. Generally, only Site
-Operators contact Transparency Logs. Site Operators regularly issue
-requests to the Transparency Log's endpoints to either obtain fresh inclusion
-proofs for their certificates or to monitor for mis-issuances affecting their
-properties.
-
-While a Transparency Log may be operated by a Certificate Authority,
-Transparency Logs SHOULD accept certificates issued by a broad set of the
-current widely-trusted Certificate Authorities. This ensures that, if one
-Transparency Log has an outage, there are several other Transparency Logs that
-Site Operators can failover to and fetch fresh inclusion proofs from.
-
-## Structure
-
 The data structure maintained by a Transparency Log is identical to the Combined
-Tree described in {{KEYTRANS}}, with two exceptions:
-the search keys that are used to navigate the Prefix Tree, and the
-data committed to by each Prefix Tree leaf node, are different.
+Tree described in {{KEYTRANS}}, with two exceptions: the search keys that are
+used to navigate the Prefix Tree, and the data committed to by each Prefix Tree
+leaf node, are different.
 
 The search key used to navigate the Prefix Tree is a function of the
 certificate's **reference identifier** in the TLS handshake. The reference
 identifier is the domain name or IP address that the TLS client will verify the
 certificate against. When the reference identifier is a domain name, the
-corresponding search key is the domain name with the components in reverse
-order, meaning that "com.example.sub" would be the search key for the domain
-name "sub.example.com". If the final component of a domain name is a wildcard
-then the wildcard and the trailing dot are stripped, such that "com.example"
-would be the search key for "*.example.com". The search key corresponding to an
-IPv4 addresses is the address rendered in dotted-decimal notation. The search
-key corresponding to an IPv6 address is the address rendered as described in
-option 1 of {{Section 2.2 of !RFC4291}}. No VRF is used, or version counter is
+corresponding search key is the domain name with the components in reverse order
+and a trailing dot, meaning that "com.example.sub." would be the search key for
+the domain name "sub.example.com". If the final component of a domain name is a
+wildcard then the wildcard is stripped, such that "com.example." would be the
+search key for "*.example.com". The search key corresponding to an IPv4
+addresses is the address rendered in dotted-decimal notation. The search key
+corresponding to an IPv6 address is the address rendered as described in option
+1 of {{Section 2.2 of !RFC4291}}. No VRF is used, or version counter is
 included, as they would be in {{KEYTRANS}}.
 
 Rather than a privacy-preserving commitment, each Prefix Tree leaf contains the
@@ -458,7 +446,7 @@ When computing `PrefixLeaf`, the hash of the leaf certificate's reference
 identifier is stored in the `vrf_output` field and the hash of
 `DomainCertificates` is stored in the `commitment` field.
 
-### Subtree Inclusion Proofs
+## Subtree Inclusion Proofs
 
 It is often necessary in later parts of this document to provide proofs of
 inclusion for entries in the Certificate Subtree. Such proofs are provided as
@@ -485,13 +473,12 @@ DomainCertificates structure. This allows recipients to verify that the leaf at
 `position` is not revoked, and also allows them to recompute the hash of the
 DomainCertificates structure stored at a given leaf of the Prefix Tree.
 
-Note that this document follows the pattern established in
-{{KEYTRANS}} of requiring each element of an
-InclusionProof to be a balanced subtree. An InclusionProof may also function as
-a "consistency proof" if the recipient is known to have observed a previous
-version of the tree.
+Note that this document follows the pattern established in {{KEYTRANS}} of
+requiring each element of an InclusionProof to be a balanced subtree. An
+InclusionProof may also function as a "consistency proof" if the recipient is
+known to have observed a previous version of the tree.
 
-### Tree Heads
+## Tree Heads
 
 Transparency Logs are generally expected to add only a small number of new
 entries to their Log Tree per day. This keeps proof sizes small and also ensures
@@ -563,291 +550,6 @@ value may change further before it is added as a new rightmost log entry.
 However, stateful clients will enforce that none of the certificates they
 observe are removed or un-revoked.
 
-## Endpoints
-
-Transparency Logs expose the following endpoints over HTTP or HTTPS. Which
-endpoint is being accessed is determined by the request's method and path.
-Request and response bodies are specific structures, which are encoded according
-to TLS format and then base64 encoded.
-
-### Get Tree
-
-Site Operators access this endpoint to initialize or update their view
-of the tree for the purpose of providing inclusion proofs to clients.
-
-GET /get-tree{?tree_size=X}
-
-~~~ tls-presentation
-struct {
-  TreeHead tree_head;
-  CombinedTreeProof combined;
-} GetTreeResponse;
-~~~
-
-The request optionally contains a `tree_size` query parameter, containing the
-size of the most recent tree head that has been observed by the client. If
-present, `tree_size` MUST be the size of a tree head that was published less
-than or equal to `max_behind` milliseconds in the past.
-
-If the `tree_size` query parameter was provided but a more recent tree head
-than `tree_size` has not been issued, the Transparency Log MAY respond with a
-204 No Content status code and an empty response body. Otherwise, the response
-body is GetTreeResponse. The `tree_head` field contains the most recent tree
-head published by the Transparency Log. The `combined` field contains the
-following:
-
-- The output of updating the view of the tree from `tree_size` (if provided) to
-  `tree_head.tree_size` ({{Section 10.3.1 of KEYTRANS}}).
-- The timestamps of all log entries that are more recent than `tree_size` and
-  have timestamps less than or equal to `10*max_behind`. These timestamps are
-  provided in left-to-right order. However, note that some of them may be
-  omitted if they are duplicates with the previous bullet, as explained in
-  {{Section 10.3 of KEYTRANS}}.
-
-If `tree_size` is provided, the proof in `combined.inclusion` is additionally a
-consistency proof.
-
-### Add Chain
-
-Site Operators access this endpoint to produce an inclusion proof for
-their certificate chain.
-
-POST /add-chain
-
-~~~ tls-presentation
-opaque ReferenceId<0..2^8-1>;
-
-struct {
-  uint64 tree_size;
-  uint32 subtree_sizes<1..2^8-1>;
-
-  ReferenceId reference_ids<1..2^8-1>;
-  Certificate chain<1..2^8-1>;
-  opaque signature<0..2^16-1>;
-} AddChainRequest;
-
-struct {
-  TreeHeadType tree_head_type;
-  select (AddChainResponse.tree_head_type) {
-    case provisional:
-      ProvisionalTreeHead tree_head;
-      CombinedTreeProof combined;
-      PrefixProof prefix;
-      SubtreeInclusionProof subtree<1..2^8-1>;
-  }
-  BearerToken bearer_token;
-} AddChainResponse;
-~~~
-
-The request body is AddChainRequest. The `tree_size` field contains the size of
-the most recent tree head observed by the client. The `subtree_sizes` field
-contains the greatest size of the Certificate Subtree observed by the client for
-each reference identifier, in the order the reference identifiers are provided
-in `reference_ids`. The `reference_ids` field contains the reference identifiers
-that the certificate chain will be validated against. The `chain` field contains
-the certificate chain itself. The first entry in `chain` is assumed to be the
-leaf certificate, and each subsequent certificate is assumed to authenticate the
-one prior, ending at a certificate which is authenticated by a trust anchor. The
-`signature` field contains a signature from the public key in the leaf
-certificate over the following:
-
-TODO Specify signature challenge
-
-The Transparency Log MUST successfully verify:
-
-1. The certificate chain, <!-- TODO: RFC reference? -->
-2. That all of the requested reference identifiers in `reference_ids` correspond
-   to unique Prefix Tree search keys, and
-3. That all of the reference identifiers in `reference_ids` are explicitly
-   authenticated by the leaf certificate as a domain name or IP address. In
-   particular, this means that wildcard domain names are not resolved and will
-   need to be put in `reference_ids` in their unresolved form (such as
-   `*.example.com`) to pass verification.
-
-The response body is AddChainResponse. If `tree_head_type` is set to `standard`,
-this indicates that the exact certificate chain is already present in the
-Certificate Subtrees for the reference identifiers and published in the
-rightmost log entry. If `tree_head_type` is set to `provisional`, this indicates
-that a provisional tree head has been issued for the chain. The provisional tree
-head is given in `tree_head` and an inclusion proof in the provisional Prefix
-Tree for all requested reference identifiers is given in `prefix`. The
-`combined` field contains the same contents as in the Get Tree endpoint
-({{get-tree}}). The `subtree` field contains an inclusion proof in the
-Certificate Subtree for each reference identifier, in the order the reference
-identifiers are provided in `reference_ids`. If an entry of
-`AddChainRequest.subtree_sizes` is greater than zero, then the corresponding
-`AddChainResponse.subtree[i].inclusion` is additionally a consistency proof.
-
-The `bearer_token` field of an AddChainResponse is arbitrarily set by the
-Transparency Log and used to authenticate requests to the Transparency Log's
-other endpoints. The bearer token will stop working once the associated
-certificate chain has expired, regardless of revocation status.
-
-### Refresh Proof
-
-Site Operators access this endpoint to refresh an inclusion proof for
-their certificate chain, making it acceptable to clients for a longer period of
-time.
-
-GET /refresh-proof?bearer_token=X&position=Y
-
-~~~ tls-presentation
-struct {
-  PrefixProof prefix;
-  SubtreeInclusionProof subtree<1..2^8-1>;
-} RefreshProofResponse;
-~~~
-
-The request contains a bearer token obtained from the Add Chain endpoint
-({{add-chain}}) in the `bearer_token` query parameter, and the position of a log
-entry in the `position` query parameter. The bearer token is encoded with
-URL-safe base64, described in {{Section 5 of !RFC4648}}. The `position` query
-parameter MUST either be the subsequent log entry issued after the provisional
-tree head (if any) associated with `bearer_token`, or be a log entry issued less
-than or equal to `max_behind` milliseconds in the past.
-
-The response body is RefreshProofResponse. The `prefix` field contains an
-inclusion proof from the Prefix Tree stored at the requested log entry,
-specifically for the reference identifiers associated with `bearer_token`. The
-`subtree` field contains inclusion proofs for the certificate chain in the
-Certificate Subtree of each reference identifier associated with `bearer_token`,
-in the order the reference identifiers were provided.
-
-### Get Certificates
-
-Site Operators access this endpoint for the purpose of auditing
-certificates that have been issued for their domain names or IP addresses.
-
-GET /get-certificates?bearer_token=X&reference_id=Y&start=Z
-
-~~~ tls-presentation
-struct {
-  SubtreeLogLeaf leaves<0..2^8-1>;
-} GetCertificatesResponse;
-~~~
-
-The `bearer_token` query parameter contains a bearer token obtained from the Add
-Chain endpoint ({{add-chain}}). The `reference_id` query parameter may contain
-any domain name or IP address authenticated by the leaf certificate associated
-with the provided bearer token, or any domain name that is suffixed by any
-authenticated domain name. The `start` query parameter contains the position to
-start at in the Certificate Subtree.
-
-Note that `reference_id` may be a domain name that is not authenticated by the
-certificate. For example, a certificate that only authenticates `example.com`
-would not be accepted by TLS clients for `sub.example.com`. However,
-`sub.example.com` would still be an acceptable input to this endpoint since it
-has the suffix `.example.com`.
-
-The response body is GetCertificatesResponse. The `leaves` field contains
-SubtreeLogLeaf structures in the same order that they were sequenced in the
-Certificate Subtree for the requested reference identifier, starting at position
-`start`.
-
-The `start` query parameter MUST be greater than or equal to the smallest
-`first_valid` field of any DomainCertificates structure for the associated
-reference identifier published in a log entry that has not passed its maximum
-lifetime.
-
-### Get Subdomains
-
-Site Operators access this endpoint to learn about subdomains of domains they
-control that have logged certificates.
-
-GET /get-subdomains?bearer_token=W&reference_id=X&position=Y&start=Z
-
-~~~ tls-presentation
-struct {
-  ReferenceId reference_id;
-  uint32 size;
-  uint32 first_valid;
-  uint32 invalid_entries<0..2^8-1>;
-} Subdomain;
-
-struct {
-  Subdomain subdomains<0..2^8-1>;
-} GetSubdomainsResponse;
-~~~
-
-The `bearer_token` query parameter contains a bearer token obtained from the Add
-Chain endpoint ({{add-chain}}). The `reference_id` query parameter may contain
-any domain name explicitly authenticated by the leaf certificate associated with
-the provided bearer token. The `position` query parameter is the position of a
-log entry that has not passed its maximum lifetime. The `start` query parameter
-contains the number of subdomains of `reference_id` to skip in the endpoint's
-output.
-
-The response body is GetSubdomainsResponse, which contains one Subdomain
-structure for each search key stored in the Prefix Tree that is prefixed with
-the search key corresponding to `reference_id` plus an additional dot. The
-`subdomains` array is sorted by lexicographic order of the corresponding Prefix
-Tree search keys. The `reference_id` field contains the reference identifier
-while the `size`, `first_valid`, and `invalid_entries` fields correspond to the
-reference identifier's Certificate Subtree as it exists in the log entry
-indicated by `position`.
-
-Clients rely on the structure of the Prefix Tree to authenticate whether or not
-all subdomains have been provided yet by the Transparency Log. Clients may need
-to make multiple requests to this endpoint, each time increasing the `start`
-query parameter to reflect subdomains already consumed, if the total number of
-subdomains exceeds a per-response limit.
-
-### Add Revocation
-
-Site Operators or Certificate Authorities access this endpoint for the
-purpose of distributing revocations for their certificates.
-
-POST /add-revocation
-
-~~~ tls-presentation
-struct {
-  Revocation revocation;
-} AddRevocationRequest;
-~~~
-
-The request body is AddRevocationRequest. There is no response body; an HTTP
-response status code of 204 indicates success, and a response status code in the
-400-599 range indicates failure of the submission. The Transparency Log applies
-the revocation by updating any DomainCertificates structures to exclude chains
-that are affected by the revocation. The revocation SHOULD be applied to all
-DomainCertificates structures within `max_behind` milliseconds.
-
-TODO define Revocation type
-
-### Get Revocations
-
-Site Operators access this endpoint to audit revocations affecting
-their certificate chains.
-
-GET /get-revocations?bearer_token=X&reference_id=Y{&page=Z}
-
-~~~ tls-presentation
-struct {
-  Revocation revocations<0..2^8-1>;
-  optional<uint32> next;
-} GetRevocationsResponse;
-~~~
-
-The `bearer_token` query parameter contains a bearer token obtained from the Add
-Chain endpoint ({{add-chain}}). The `reference_id` query parameter may contain
-any domain name or IP address authenticated by the leaf certificate associated
-with the provided bearer token, or any domain name that is suffixed by any
-authenticated domain name. Optionally, a page number may be provided in the
-`page` query parameter. The `page` parameter MUST be a value observed in the
-`next` field of a prior GetRevocationsResponse.
-
-The response body is GetRevocationsResponse. The `revocations` field of the
-response contains Revocation structures corresponding one-to-one with the
-`invalid_entries` field of the most recent DomainCertificates structure in the
-Certificate Subtree for the requested reference identifier. Note that the most
-recent DomainCertificates structure may only have been published in a
-provisional tree head at the time of the request. If the last entry of
-`revocations` does not correspond to the last entry of `invalid_entries`, a page
-number in `next` is provided to allow the client to make a follow-up request for
-the next subset of revocations. The Transparency Log MUST set `next` such that,
-if the `invalid_entries` field is modified while a client is requesting a series
-of pages, the client will not miss any revocations that existed as of the first
-request (with no `page` parameter) as a result.
 
 # TLS Extension
 
@@ -1255,6 +957,304 @@ proof. However, the ability of clients to enforce that certificates are organize
 into the Transparency Log correctly is the core reason that Site Operators don't
 need to download the entire contents of the Transparency Log to find all
 certificates that are relevant to them.
+
+
+# Transparency Log Endpoints
+
+Transparency Logs are online services that maintain a tree data structure and
+provide access to it through the endpoints described below. Generally, only Site
+Operators contact Transparency Logs. Site Operators regularly issue requests to
+the Transparency Log's endpoints to either obtain fresh inclusion proofs for
+their certificates or to monitor for mis-issuances affecting their properties.
+
+Endpoints are accessible over HTTP or HTTPS. Which endpoint is being accessed is
+determined by the request's method and path. Request and response bodies are
+specific structures, which are encoded according to TLS format and then base64
+encoded.
+
+## Get Tree
+
+Site Operators access this endpoint to initialize or update their view
+of the tree for the purpose of providing inclusion proofs to clients.
+
+GET /get-tree{?tree_size=X}
+
+~~~ tls-presentation
+struct {
+  TreeHead tree_head;
+  CombinedTreeProof combined;
+} GetTreeResponse;
+~~~
+
+The request optionally contains a `tree_size` query parameter, containing the
+size of the most recent tree head that has been observed by the client. If
+present, `tree_size` MUST be the size of a tree head that was published less
+than or equal to `max_behind` milliseconds in the past.
+
+If the `tree_size` query parameter was provided but a more recent tree head
+than `tree_size` has not been issued, the Transparency Log MAY respond with a
+204 No Content status code and an empty response body. Otherwise, the response
+body is GetTreeResponse. The `tree_head` field contains the most recent tree
+head published by the Transparency Log. The `combined` field contains the
+following:
+
+- The output of updating the view of the tree from `tree_size` (if provided) to
+  `tree_head.tree_size` ({{Section 10.3.1 of KEYTRANS}}).
+- The timestamps of all log entries that are more recent than `tree_size` and
+  have timestamps less than or equal to `10*max_behind`. These timestamps are
+  provided in left-to-right order. However, note that some of them may be
+  omitted if they are duplicates with the previous bullet, as explained in
+  {{Section 10.3 of KEYTRANS}}.
+
+If `tree_size` is provided, the proof in `combined.inclusion` is additionally a
+consistency proof.
+
+## Add Chain
+
+Site Operators access this endpoint to produce an inclusion proof for their
+certificate chain. Transparency Logs SHOULD accept certificates issued by a
+broad set of the current widely-trusted Certificate Authorities. This ensures
+that, if one Transparency Log has an outage, there are several other
+Transparency Logs that Site Operators can failover to and fetch fresh inclusion
+proofs from.
+
+
+POST /add-chain
+
+~~~ tls-presentation
+opaque ReferenceId<0..2^8-1>;
+
+struct {
+  uint64 tree_size;
+  uint32 subtree_sizes<1..2^8-1>;
+
+  ReferenceId reference_ids<1..2^8-1>;
+  Certificate chain<1..2^8-1>;
+  opaque signature<0..2^16-1>;
+} AddChainRequest;
+
+struct {
+  TreeHeadType tree_head_type;
+  select (AddChainResponse.tree_head_type) {
+    case provisional:
+      ProvisionalTreeHead tree_head;
+      CombinedTreeProof combined;
+      PrefixProof prefix;
+      SubtreeInclusionProof subtree<1..2^8-1>;
+  }
+  BearerToken bearer_token;
+} AddChainResponse;
+~~~
+
+The request body is AddChainRequest. The `tree_size` field contains the size of
+the most recent tree head observed by the client. The `subtree_sizes` field
+contains the greatest size of the Certificate Subtree observed by the client for
+each reference identifier, in the order the reference identifiers are provided
+in `reference_ids`. The `reference_ids` field contains the reference identifiers
+that the certificate chain will be validated against. The `chain` field contains
+the certificate chain itself. The first entry in `chain` is assumed to be the
+leaf certificate, and each subsequent certificate is assumed to authenticate the
+one prior, ending at a certificate which is authenticated by a trust anchor. The
+`signature` field contains a signature from the public key in the leaf
+certificate over the following:
+
+TODO Specify signature challenge
+
+The Transparency Log MUST successfully verify:
+
+1. The certificate chain, <!-- TODO: RFC reference? -->
+2. That all of the requested reference identifiers in `reference_ids` correspond
+   to unique Prefix Tree search keys, and
+3. That all of the reference identifiers in `reference_ids` are explicitly
+   authenticated by the leaf certificate as a domain name or IP address. In
+   particular, this means that wildcard domain names are not resolved and will
+   need to be put in `reference_ids` in their unresolved form (such as
+   `*.example.com`) to pass verification.
+
+The response body is AddChainResponse. If `tree_head_type` is set to `standard`,
+this indicates that the exact certificate chain is already present in the
+Certificate Subtrees for the reference identifiers and published in the
+rightmost log entry. If `tree_head_type` is set to `provisional`, this indicates
+that a provisional tree head has been issued for the chain. The provisional tree
+head is given in `tree_head` and an inclusion proof in the provisional Prefix
+Tree for all requested reference identifiers is given in `prefix`. The
+`combined` field contains the same contents as in the Get Tree endpoint
+({{get-tree}}). The `subtree` field contains an inclusion proof in the
+Certificate Subtree for each reference identifier, in the order the reference
+identifiers are provided in `reference_ids`. If an entry of
+`AddChainRequest.subtree_sizes` is greater than zero, then the corresponding
+`AddChainResponse.subtree[i].inclusion` is additionally a consistency proof.
+
+The `bearer_token` field of an AddChainResponse is arbitrarily set by the
+Transparency Log and used to authenticate requests to the Transparency Log's
+other endpoints. The bearer token will stop working once the associated
+certificate chain has expired, regardless of revocation status.
+
+## Refresh Proof
+
+Site Operators access this endpoint to refresh an inclusion proof for
+their certificate chain, making it acceptable to clients for a longer period of
+time.
+
+GET /refresh-proof?bearer_token=X&position=Y
+
+~~~ tls-presentation
+struct {
+  PrefixProof prefix;
+  SubtreeInclusionProof subtree<1..2^8-1>;
+} RefreshProofResponse;
+~~~
+
+The request contains a bearer token obtained from the Add Chain endpoint
+({{add-chain}}) in the `bearer_token` query parameter, and the position of a log
+entry in the `position` query parameter. The bearer token is encoded with
+URL-safe base64, described in {{Section 5 of !RFC4648}}. The `position` query
+parameter MUST either be the subsequent log entry issued after the provisional
+tree head (if any) associated with `bearer_token`, or be a log entry issued less
+than or equal to `max_behind` milliseconds in the past.
+
+The response body is RefreshProofResponse. The `prefix` field contains an
+inclusion proof from the Prefix Tree stored at the requested log entry,
+specifically for the reference identifiers associated with `bearer_token`. The
+`subtree` field contains inclusion proofs for the certificate chain in the
+Certificate Subtree of each reference identifier associated with `bearer_token`,
+in the order the reference identifiers were provided.
+
+## Get Certificates
+
+Site Operators access this endpoint for the purpose of auditing
+certificates that have been issued for their domain names or IP addresses.
+
+GET /get-certificates?bearer_token=X&reference_id=Y&start=Z
+
+~~~ tls-presentation
+struct {
+  SubtreeLogLeaf leaves<0..2^8-1>;
+} GetCertificatesResponse;
+~~~
+
+The `bearer_token` query parameter contains a bearer token obtained from the Add
+Chain endpoint ({{add-chain}}). The `reference_id` query parameter may contain
+any domain name or IP address authenticated by the leaf certificate associated
+with the provided bearer token, or any domain name that is suffixed by any
+authenticated domain name. The `start` query parameter contains the position to
+start at in the Certificate Subtree.
+
+Note that `reference_id` may be a domain name that is not authenticated by the
+certificate. For example, a certificate that only authenticates `example.com`
+would not be accepted by TLS clients for `sub.example.com`. However,
+`sub.example.com` would still be an acceptable input to this endpoint since it
+has the suffix `.example.com`.
+
+The response body is GetCertificatesResponse. The `leaves` field contains
+SubtreeLogLeaf structures in the same order that they were sequenced in the
+Certificate Subtree for the requested reference identifier, starting at position
+`start`.
+
+The `start` query parameter MUST be greater than or equal to the smallest
+`first_valid` field of any DomainCertificates structure for the associated
+reference identifier published in a log entry that has not passed its maximum
+lifetime.
+
+## Get Subdomains
+
+Site Operators access this endpoint to learn about subdomains of domains they
+control that have logged certificates.
+
+GET /get-subdomains?bearer_token=W&reference_id=X&position=Y&start=Z
+
+~~~ tls-presentation
+struct {
+  ReferenceId reference_id;
+  uint32 size;
+  uint32 first_valid;
+  uint32 invalid_entries<0..2^8-1>;
+} Subdomain;
+
+struct {
+  Subdomain subdomains<0..2^8-1>;
+} GetSubdomainsResponse;
+~~~
+
+The `bearer_token` query parameter contains a bearer token obtained from the Add
+Chain endpoint ({{add-chain}}). The `reference_id` query parameter may contain
+any domain name explicitly authenticated by the leaf certificate associated with
+the provided bearer token. The `position` query parameter is the position of a
+log entry that has not passed its maximum lifetime. The `start` query parameter
+contains the number of subdomains of `reference_id` to skip in the endpoint's
+output.
+
+The response body is GetSubdomainsResponse, which contains one Subdomain
+structure for each search key stored in the Prefix Tree that is prefixed with
+the search key corresponding to `reference_id` plus an additional dot. The
+`subdomains` array is sorted by lexicographic order of the corresponding Prefix
+Tree search keys. The `reference_id` field contains the reference identifier
+while the `size`, `first_valid`, and `invalid_entries` fields correspond to the
+reference identifier's Certificate Subtree as it exists in the log entry
+indicated by `position`.
+
+Clients rely on the structure of the Prefix Tree to authenticate whether or not
+all subdomains have been provided yet by the Transparency Log. Clients may need
+to make multiple requests to this endpoint, each time increasing the `start`
+query parameter to reflect subdomains already consumed, if the total number of
+subdomains exceeds a per-response limit.
+
+## Add Revocation
+
+Site Operators or Certificate Authorities access this endpoint for the
+purpose of distributing revocations for their certificates.
+
+POST /add-revocation
+
+~~~ tls-presentation
+struct {
+  Revocation revocation;
+} AddRevocationRequest;
+~~~
+
+The request body is AddRevocationRequest. There is no response body; an HTTP
+response status code of 204 indicates success, and a response status code in the
+400-599 range indicates failure of the submission. The Transparency Log applies
+the revocation by updating any DomainCertificates structures to exclude chains
+that are affected by the revocation. The revocation SHOULD be applied to all
+DomainCertificates structures within `max_behind` milliseconds.
+
+TODO define Revocation type
+
+## Get Revocations
+
+Site Operators access this endpoint to audit revocations affecting
+their certificate chains.
+
+GET /get-revocations?bearer_token=X&reference_id=Y{&page=Z}
+
+~~~ tls-presentation
+struct {
+  Revocation revocations<0..2^8-1>;
+  optional<uint32> next;
+} GetRevocationsResponse;
+~~~
+
+The `bearer_token` query parameter contains a bearer token obtained from the Add
+Chain endpoint ({{add-chain}}). The `reference_id` query parameter may contain
+any domain name or IP address authenticated by the leaf certificate associated
+with the provided bearer token, or any domain name that is suffixed by any
+authenticated domain name. Optionally, a page number may be provided in the
+`page` query parameter. The `page` parameter MUST be a value observed in the
+`next` field of a prior GetRevocationsResponse.
+
+The response body is GetRevocationsResponse. The `revocations` field of the
+response contains Revocation structures corresponding one-to-one with the
+`invalid_entries` field of the most recent DomainCertificates structure in the
+Certificate Subtree for the requested reference identifier. Note that the most
+recent DomainCertificates structure may only have been published in a
+provisional tree head at the time of the request. If the last entry of
+`revocations` does not correspond to the last entry of `invalid_entries`, a page
+number in `next` is provided to allow the client to make a follow-up request for
+the next subset of revocations. The Transparency Log MUST set `next` such that,
+if the `invalid_entries` field is modified while a client is requesting a series
+of pages, the client will not miss any revocations that existed as of the first
+request (with no `page` parameter) as a result.
 
 
 # Extended Resolution Mechanisms
