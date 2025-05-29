@@ -774,8 +774,11 @@ is against a log entry that is currently published by the Transparency Log but
 more recent than the client may be aware of. These proofs are verified as
 follows:
 
-1. Verify that `tree_head.size` is greater than the size of the tree head
-   advertised by the client.
+1. If the client advertised a `standard` tree head type, verify that
+   `tree_head.size` is greater than the size advertised by the client. If the
+   client advertised a `provisional` tree head type, verify that
+   `tree_head.size` is greater than the size of the associated provisional tree
+   head.
 
 2. Verify `combined` as executing the following proofs in this order:
 
@@ -829,7 +832,7 @@ follows:
          would not unrevoke any previously revoked certificates.
 
    2. If the corresponding search key is in the Past Authenticated Search Keys
-      list but not in the Sequenced Search Keys list, clients:
+      list but not in the Sequenced Search Keys list:
       1. Verify that `SubtreeInclusionProof.size` is greater than or equal to
          the retained size of the Certificate Subtree.
       2. Verify that `SubtreeInclusionProof.{first_valid, invalid_entries}`
@@ -872,38 +875,69 @@ proof is against a log entry that is not yet published by the Transparency Log.
 These proofs are verified as follows:
 
 1. If the client advertised a `standard` tree head type, verify that
-   `tree_head.size` is greater than or equal to that of the advertised tree head.
-   If the client advertised a `provisional` tree head type, verify that
+   `tree_head.size` is greater than or equal to the size advertised by the
+   client. If the client advertised a `provisional` tree head type, verify that
    `tree_head.size` is greater than that of the advertised tree head, or that
    `tree_head.size` is equal and `tree_head.counter` is greater than that of the
    advertised tree head.
+
 2. Verify `combined` as executing the following proofs in this order:
-   1. Updating the view of the tree ({{Section 10.3.1 of KEYTRANS}}). Note that
-      verifying this proof step also verifies that the rightmost log entry's
-      timestamp is within the bounds set by `max_ahead` and `max_behind`.
-   2. If a provisional tree head was advertised by the client and the subsequent
-      log entry exists, then the subsequent log entry's timestamp and a
-      `PrefixProof` from it are added to `combined`.
-3. The `sequencing` field must be present when a provisional tree head was
-   advertised by the client and the subsequent log entry exists. The `sequencing`
-   field contains the size of the Certificate Subtree and the `first_valid` and
-   `invalid_entries` fields of the `DomainCertificates` structure as it exists in
-   the subsequent log entry. If present:
-   1. Verify that `sequencing.size` is greater than or equal to the retained size
-      of the Certificate Subtree.
-   2. Verify that `sequencing.{first_valid, invalid_entries}` would not unrevoke
-      any previously-revoked certificates.
-4. If the `sequencing` field is present, compare the following fields in
-   `subtree` against those in `sequencing`; if the `sequencing` field is not
-   present but the client advertised a provisional tree head, compare the fields
-   against the advertised provisional tree head:
-   1. Verify that `subtree.size` is greater than or equal.
-   2. Verify that `subtree.{first_valid, invalid_entries}` would not unrevoke any
-      previously-revoked certificates.
-5. Verify that `subtree.{first_valid, invalid_entries}` do not exclude
-   `subtree.position`.
-6. Compute the root hash of the Log Tree and the root hash of the provisional
-   Prefix Tree:
+
+   1. Updating the view of the tree ({{Section 10.3.1 of KEYTRANS}}). This also
+      verifies that the rightmost log entry's timestamp is within the bounds set
+      by `max_ahead` and `max_behind`.
+
+   2. If the client advertised a provisional tree head type for the chosen
+      Transparency Log and the subsequent log entry exists, then the subsequent
+      log entry's timestamp and a `PrefixProof` from it for the Past
+      Authenticated Search Keys is added to `combined`.
+
+3. If the client advertised a provisional tree head type for the chosen
+   Transparency Log, and the subsequent log entry exists, the client prepares a
+   list referred to as the **Sequenced Search Keys**. This list is the
+   intersection the Past Authenticated Search Keys and the Current Authenticated
+   Search Keys lists, stored in lexicographic order.
+
+   If this list is not empty, the `sequencing` field is expected to be present.
+   Each entry in the `sequencing` field corresponds to each entry in the
+   Sequenced Search Keys list. Each SequencingProof structure contains size of
+   the Certificate Subtree for the given search key, and the `first_valid` and
+   `invalid_entries` fields of its `DomainCertificates` structure as it exists
+   in the subsequent log entry. Clients:
+   1. Verify that `SequencingProof.size` is greater than or equal to the
+      retained size of the Certificate Subtree.
+   2. Verify that `SequencingProof.{first_valid, invalid_entries}` would not
+      unrevoke any previously revoked certificates.
+
+4. Each entry in the `subtree` field corresponds to the union of the Current
+   Authenticated Search Keys and Past Authenticated Search Keys lists, in
+   lexicographic order. Entries corresponding to search keys that are in the
+   Current Authenticated Search Keys list contain the search key's state in the
+   provisional prefix tree. Entries corresponding to search keys that are
+   **only** in the Past Authenticated Search Keys list contain the search key's
+   state in the subsequent log entry. For each entry in the `subtree` field:
+
+   1. If the corresponding search key is in the Sequenced Search Keys list,
+      this means that there is an entry corresponding to the search key in
+      `sequencing`. Compared to the fields of that `SequencingProof` structure:
+      1. Verify that `SubtreeInclusionProof.size` is greater than or equal.
+      2. Verify that `SubtreeInclusionProof.{first_valid, invalid_entries}`
+         would not unrevoke any previously revoked certificates.
+
+   2. If the corresponding search key is in the Past Authenticated Search Keys
+      list but not in the Sequenced Search Keys list:
+      1. Verify that `SubtreeInclusionProof.size` is greater than or equal to
+         the retained size of the Certificate Subtree.
+      2. Verify that `SubtreeInclusionProof.{first_valid, invalid_entries}`
+         would not unrevoke any previously revoked certificates.
+
+   3. If the corresponding search key is in the Current Authenticated Search
+      Keys list, verify that `SubtreeInclusionProof.{first_valid,
+      invalid_entries}` do not exclude `SubtreeInclusionProof.position`.
+
+5. Compute the root hash of the Log Tree, the root hash of the provisional
+   Prefix Tree, and verify the signature in `tree_head.signature`:
+
    1. Compute the root hash of the Certificate Subtree as it exists in the
       provisional Prefix Tree. If the `sequencing` field is present, also compute
       the root hash of the Certificate Subtree as it exists in the subsequent log
@@ -924,7 +958,6 @@ These proofs are verified as follows:
       known and will not be repeated.
    4. With the provisional Prefix Tree leaf hash and the proof in `prefix`,
       compute the provisional Prefix Tree root hash.
-7. Verify the signature in `tree_head.signature`.
 
 When `proof_type` is set to `same_standard`, this indicates that the inclusion
 proof is against the same tree head that was specified in the
