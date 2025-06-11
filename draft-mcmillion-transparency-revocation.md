@@ -809,7 +809,7 @@ follows:
    Each entry in the `sequencing` field corresponds to each entry in the
    Sequenced Search Keys list. Each SequencingProof structure contains size of
    the Certificate Subtree for the given search key, and the `first_valid` and
-   `invalid_entries` fields of its `DomainCertificates` structure as it exists
+   `invalid_entries` fields of its `DomainCertificates` structure, as it exists
    in the subsequent log entry. Clients:
    1. Verify that `SequencingProof.size` is greater than or equal to the
       retained size of the Certificate Subtree.
@@ -832,7 +832,7 @@ follows:
          would not unrevoke any previously revoked certificates.
 
    2. If the corresponding search key is in the Past Authenticated Search Keys
-      list but not in the Sequenced Search Keys list:
+      list but not in the Current Authenticated Search Keys list:
       1. Verify that `SubtreeInclusionProof.size` is greater than or equal to
          the retained size of the Certificate Subtree.
       2. Verify that `SubtreeInclusionProof.{first_valid, invalid_entries}`
@@ -845,15 +845,15 @@ follows:
 5. Compute the root hash of the Log Tree and verify the signature in
    `tree_head.signature`:
 
-   1. For each entry in `subtree`, compute the root hash of each Certificate
-      Subtrees. This is done by interpreting `SubtreeInclusionProof.inclusion`
+   1. For each entry in `subtree`, compute the root hash of the Certificate
+      Subtree. This is done by interpreting `SubtreeInclusionProof.inclusion`
       as an inclusion proof in the Certificate Subtree for
       `SubtreeInclusionProof.position`. If the client advertised a provisional
       tree head, the proof will also function as a consistency proof as
       described in {{Section 3.2 of KEYTRANS}}.
 
-   2. For each entry in `sequencing`, compute the root hash of each Certificate
-      Subtrees. The inclusion proof in the `subtree` entry for the same search
+   2. For each entry in `sequencing`, compute the root hash of the Certificate
+      Subtree. The inclusion proof in the `subtree` entry for the same search
       key will additionally contain the minimum set of node hashes necessary to
       compute the root of the Certificate Subtree at size
       `SequencingProof.size`.
@@ -861,14 +861,14 @@ follows:
    3. With the root hashes of the Certificate Subtrees and the other fields in
       `subtree` and `sequencing`, compute the Prefix Tree leaf hash for each
       lookup that was done. As mentioned earlier, each search key in the Current
-      Authenticated Search Key list is looked up in the rightmost log entry, and
-      each search key in the Past Authenticated Search Key list is looked up in
+      Authenticated Search Keys list is looked up in the rightmost log entry and
+      each search key in the Past Authenticated Search Keys list is looked up in
       the subsequent log entry, deduplicating if these log entries are the same.
 
    4. With the Prefix Tree leaf hashes, compute the root hash of the Log Tree
       with `combined`. If the client advertised a provisional tree head, the
-      proof will also function as a consistency proof as described in {{Section
-      3.2 of KEYTRANS}}.
+      inclusion proof in `combined` will also function as a consistency proof as
+      described in {{Section 3.2 of KEYTRANS}}.
 
 When `proof_type` is set to `provisional`, this indicates that the inclusion
 proof is against a log entry that is not yet published by the Transparency Log.
@@ -902,7 +902,7 @@ These proofs are verified as follows:
    Each entry in the `sequencing` field corresponds to each entry in the
    Sequenced Search Keys list. Each SequencingProof structure contains size of
    the Certificate Subtree for the given search key, and the `first_valid` and
-   `invalid_entries` fields of its `DomainCertificates` structure as it exists
+   `invalid_entries` fields of its `DomainCertificates` structure, as it exists
    in the subsequent log entry. Clients:
    1. Verify that `SequencingProof.size` is greater than or equal to the
       retained size of the Certificate Subtree.
@@ -913,7 +913,7 @@ These proofs are verified as follows:
    Authenticated Search Keys and Past Authenticated Search Keys lists, in
    lexicographic order. Entries corresponding to search keys that are in the
    Current Authenticated Search Keys list contain the search key's state in the
-   provisional prefix tree. Entries corresponding to search keys that are
+   provisional Prefix Tree. Entries corresponding to search keys that are
    **only** in the Past Authenticated Search Keys list contain the search key's
    state in the subsequent log entry. For each entry in the `subtree` field:
 
@@ -925,7 +925,7 @@ These proofs are verified as follows:
          would not unrevoke any previously revoked certificates.
 
    2. If the corresponding search key is in the Past Authenticated Search Keys
-      list but not in the Sequenced Search Keys list:
+      list but not in the Current Authenticated Search Keys list:
       1. Verify that `SubtreeInclusionProof.size` is greater than or equal to
          the retained size of the Certificate Subtree.
       2. Verify that `SubtreeInclusionProof.{first_valid, invalid_entries}`
@@ -938,26 +938,31 @@ These proofs are verified as follows:
 5. Compute the root hash of the Log Tree, the root hash of the provisional
    Prefix Tree, and verify the signature in `tree_head.signature`:
 
-   1. Compute the root hash of the Certificate Subtree as it exists in the
-      provisional Prefix Tree. If the `sequencing` field is present, also compute
-      the root hash of the Certificate Subtree as it exists in the subsequent log
-      entry. Both of these are done by interpreting `subtree.inclusion` as a proof
-      of inclusion in the Certificate Subtree for `subtree.position`. If the
-      `sequencing` field is present, `subtree.inclusion` additionally contains the
-      minimum set of node hashes necessary to compute the root of the Certificate
-      Subtree at size `sequencing.size`. If the client advertised a provisional
-      tree head, the full subtrees of the Certificate Subtree as it existed in the
-      advertised tree head are assumed to be known and will not be repeated.
-   2. With the root hash of the Certificate Subtree and the other fields in
-      `subtree`, compute the Prefix Tree leaf hash for the provisional Prefix
-      Tree. If the `sequencing` field is present, use the fields of `sequencing`
-      to compute the Prefix Tree leaf hash for the subsequent log entry.
-   3. Compute the root hash of the Log Tree with `combined` (which may require the
-      Prefix Tree leaf hash for the subsequent log entry). Note that the full
-      subtrees of the Log Tree advertised by the client are assumed to already be
-      known and will not be repeated.
-   4. With the provisional Prefix Tree leaf hash and the proof in `prefix`,
-      compute the provisional Prefix Tree root hash.
+   1. For each entry in `subtree`, compute the root hash of the Certificate
+      Subtree. This is done by interpreting `SubtreeInclusionProof.inclusion`
+      as an inclusion proof in the Certificate Subtree for
+      `SubtreeInclusionProof.position`. If the client advertised a provisional
+      tree head, the proof will also function as a consistency proof as
+      described in {{Section 3.2 of KEYTRANS}}.
+
+    2. For each entry in `sequencing`, compute the root hash of the Certificate
+      Subtree. The inclusion proof in the `subtree` entry for the same search
+      key will additionally contain the minimum set of node hashes necessary to
+      compute the root of the Certificate Subtree at size
+      `SequencingProof.size`.
+
+    3. With the root hashes of the Certificate Subtrees and the other fields in
+      `subtree` and `sequencing`, compute the Prefix Tree leaf hash for each
+      lookup that was done. As mentioned earlier, each search key in the Current
+      Authenticated Search Keys list is looked up in the provisional Prefix Tree
+      and each search key in the Past Authenticated Search Keys list is looked
+      up in the subsequent log entry.
+
+    4. With the Prefix Tree leaf hashes, compute the root hash of the Log Tree
+      with `combined` and the root hash of the provisional Prefix Tree. If the
+      client advertised a provisional tree head, the inclusion proof in
+      `combined` will also function as a consistency proof as described in
+      {{Section 3.2 of KEYTRANS}}.
 
 When `proof_type` is set to `same_standard`, this indicates that the inclusion
 proof is against the same tree head that was specified in the
