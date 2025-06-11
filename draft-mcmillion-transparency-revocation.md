@@ -846,10 +846,11 @@ follows:
    `tree_head.signature`:
 
    1. For each entry in `subtree`, compute the root hash of the Certificate
-      Subtree. This is done by interpreting `SubtreeInclusionProof.inclusion`
-      as an inclusion proof in the Certificate Subtree for
+      Subtree. This is done by interpreting `SubtreeInclusionProof.inclusion` as
+      an inclusion proof in the Certificate Subtree for
       `SubtreeInclusionProof.position`. If the client advertised a provisional
-      tree head, the proof will also function as a consistency proof as
+      tree head and the corresponding search key is in the Past Authenticated
+      Search Keys list, the proof will also function as a consistency proof as
       described in {{Section 3.2 of KEYTRANS}}.
 
    2. For each entry in `sequencing`, compute the root hash of the Certificate
@@ -910,9 +911,10 @@ These proofs are verified as follows:
       unrevoke any previously revoked certificates.
 
 4. Each entry in the `subtree` field corresponds to the union of the Current
-   Authenticated Search Keys and Past Authenticated Search Keys lists, in
-   lexicographic order. Entries corresponding to search keys that are in the
-   Current Authenticated Search Keys list contain the search key's state in the
+   Authenticated Search Keys list and, if the client advertised a provisional
+   tree head and the subsequent log entry exists, the Past Authenticated Search
+   Keys list. Entries corresponding to search keys that are in the Current
+   Authenticated Search Keys list contain the search key's state in the
    provisional Prefix Tree. Entries corresponding to search keys that are
    **only** in the Past Authenticated Search Keys list contain the search key's
    state in the subsequent log entry. For each entry in the `subtree` field:
@@ -939,10 +941,11 @@ These proofs are verified as follows:
    Prefix Tree, and verify the signature in `tree_head.signature`:
 
    1. For each entry in `subtree`, compute the root hash of the Certificate
-      Subtree. This is done by interpreting `SubtreeInclusionProof.inclusion`
-      as an inclusion proof in the Certificate Subtree for
+      Subtree. This is done by interpreting `SubtreeInclusionProof.inclusion` as
+      an inclusion proof in the Certificate Subtree for
       `SubtreeInclusionProof.position`. If the client advertised a provisional
-      tree head, the proof will also function as a consistency proof as
+      tree head and the corresponding search key is in the Past Authenticated
+      Search Keys list, the proof will also function as a consistency proof as
       described in {{Section 3.2 of KEYTRANS}}.
 
     2. For each entry in `sequencing`, compute the root hash of the Certificate
@@ -956,50 +959,50 @@ These proofs are verified as follows:
       lookup that was done. As mentioned earlier, each search key in the Current
       Authenticated Search Keys list is looked up in the provisional Prefix Tree
       and each search key in the Past Authenticated Search Keys list is looked
-      up in the subsequent log entry.
+      up in the subsequent log entry if and only if it exists.
 
     4. With the Prefix Tree leaf hashes, compute the root hash of the Log Tree
-      with `combined` and the root hash of the provisional Prefix Tree. If the
-      client advertised a provisional tree head, the inclusion proof in
-      `combined` will also function as a consistency proof as described in
-      {{Section 3.2 of KEYTRANS}}.
+      with `combined`, and compute the root hash of the provisional Prefix Tree
+      with the proof in `prefix`. If the client advertised a provisional tree
+      head, the inclusion proof in `combined` will also function as a
+      consistency proof as described in {{Section 3.2 of KEYTRANS}}.
 
-When `proof_type` is set to `same_standard`, this indicates that the inclusion
+When `proof_type` is set to `same_head`, this indicates that the inclusion
 proof is against the same tree head that was specified in the
 `SupportedTransparencyLog` structure for the chosen Transparency Log. These
 proofs are verified as follows:
 
-1. Verify that the client advertised a standard tree head type for the chosen
-   Transparency Log.
-2. For the advertised tree head, verify that the rightmost log entry's timestamp
+1. For the advertised tree head, verify that the rightmost log entry's timestamp
    is within the bounds set by `max_ahead` and `max_behind`.
-3. Verify that `subtree.{first_valid, invalid_entries}` do not exclude
-   `subtree.position`.
-4. Compute the root hash of the Prefix Tree and verify that it matches the
+
+2. Each entry in the `subtree` field corresponds to each entry of the Current
+   Authenticated Search Keys list. If the client advertised a standard tree head
+   type, each entry contains the corresponding search key's state as it exists
+   in the rightmost log entry. If the client advertised a provisional tree head
+   type each entry contains the corresponding search key's state as it exists in
+   the provisional Prefix Tree.
+
+   For each entry in the `subtree` field, verify that
+   `SubtreeInclusionProof.{first_valid, invalid_entries}` do not exclude
+   `SubtreeInclusionProof.position`.
+
+3. Compute the root hash of the Prefix Tree and verify that it matches the
    retained value:
-   1. Compute the root hash of the Certificate Subtree by interpreting
-      `subtree.inclusion` as an inclusion proof from the Certificate Subtree for
-      the log entry at `subtree.position`.
-   2. With the root hash of the Certificate Subtree and the other fields in
-      `subtree`, compute the Prefix Tree leaf hash.
-   3. With the Prefix Tree leaf hash and the proof in `prefix`, compute the Prefix
-      Tree root hash.
 
-<!-- When `proof_type` is set to `same_provisional`, this indicates that the
-inclusion proof is against the same provisional tree head that was previously
-provided by the server. These proofs are verified as follows:
+   1. For each entry in `subtree`, compute the root hash of the Certificate
+      Subtree. This is done by interpreting `SubtreeInclusionProof.inclusion` as
+      an inclusion proof in the Certificate Subtree for
+      `SubtreeInclusionProof.position`. If the client advertised a provisional
+      tree head and the corresponding search key is in the Past Authenticated
+      Search Keys list, the proof will also function as a consistency proof as
+      described in {{Section 3.2 of KEYTRANS}}.
 
-1. Verify that the client advertised a provisional tree head type for the chosen
-   Transparency Log.
-2. For the advertised tree head, verify that the rightmost log entry's timestamp
-   is within the bounds set by `max_ahead` and `max_behind`.
-3. Verify that the previously-retained `first_valid` and `invalid_entries` fields
-   do not exclude `position`.
-4. Compute the root hash of the Certificate Subtree by interpreting `inclusion`
-   as an inclusion proof from the Certificate Subtree for the log entry at
-   `position`. The full subtrees are assumed to already be known, meaning they
-   will not be repeated. Verify that the computed value matches the retained
-   value. -->
+    2. With the root hashes of the Certificate Subtrees and the other fields in
+      `subtree`, compute the Prefix Tree leaf hash for each
+      lookup that was done.
+
+    3. With the Prefix Tree leaf hashes, compute the root hash of the Prefix
+       Tree with the proof in `prefix`.
 
 As was mentioned in {{structure}}, the entire certificate chain that will be
 presented by the server is stored in the leaf of the Certificate Subtree. If the
@@ -1012,15 +1015,6 @@ certificates. That is, it prevents the possibility of a leaf certificate being
 logged with a chain to a testing (or otherwise untrusted) trust anchor, and then
 being presented in TLS connections with additional intermediates that connect it
 to a different trust anchor.
-
-Similarly, the reference identifier for the leaf certificate (the
-domain or IP address) determines where in the Prefix Tree the Transparency Log
-stores the certificate chain. If the server attempts to present the certificate
-for a different reference identifier, the client will be unable to verify the
-proof. However, the ability of clients to enforce that certificates are organized
-into the Transparency Log correctly is the core reason that Site Operators don't
-need to download the entire contents of the Transparency Log to find all
-certificates that are relevant to them.
 
 
 # Transparency Log Endpoints
