@@ -979,8 +979,8 @@ proofs are verified as follows:
    Authenticated Search Keys list. If the client advertised a standard tree head
    type, each entry contains the corresponding search key's state as it exists
    in the rightmost log entry. If the client advertised a provisional tree head
-   type each entry contains the corresponding search key's state as it exists in
-   the provisional Prefix Tree.
+   type, each entry contains the corresponding search key's state as it exists
+   in the provisional Prefix Tree.
 
    For each entry in the `subtree` field, verify that
    `SubtreeInclusionProof.{first_valid, invalid_entries}` do not exclude
@@ -1004,12 +1004,12 @@ proofs are verified as follows:
     3. With the Prefix Tree leaf hashes, compute the root hash of the Prefix
        Tree with the proof in `prefix`.
 
-As was mentioned in {{structure}}, the entire certificate chain that will be
-presented by the server is stored in the leaf of the Certificate Subtree. If the
-server presents a different certificate chain to the client than was logged in
-the Transparency Log (for example by including or omitting intermediates), the
-client will be unable to compute the correct Certificate Subtree root hash and
-proof verification will fail. Authenticating the entire certificate chain,
+As was mentioned in {{transparency-log}}, the entire certificate chain that will
+be presented by the server is stored in the leaf of the Certificate Subtree. If
+the server presents a different certificate chain to the client than was logged
+in the Transparency Log (for example, by including or omitting intermediates),
+the client will be unable to compute the correct Certificate Subtree root hash
+and proof verification will fail. Authenticating the entire certificate chain,
 instead of just the leaf, prevents the possibility of unlogged intermediate
 certificates. That is, it prevents the possibility of a leaf certificate being
 logged with a chain to a testing (or otherwise untrusted) trust anchor, and then
@@ -1044,7 +1044,7 @@ struct {
 } GetTreeResponse;
 ~~~
 
-The request optionally contains a `tree_size` query parameter, containing the
+The request optionally contains a `tree_size` query parameter containing the
 size of the most recent tree head that has been observed by the client. If
 present, `tree_size` MUST be the size of a tree head that was published less
 than or equal to `max_behind` milliseconds in the past.
@@ -1076,17 +1076,14 @@ that, if one Transparency Log has an outage, there are several other
 Transparency Logs that Site Operators can failover to and fetch fresh inclusion
 proofs from.
 
-
 POST /add-chain
 
 ~~~ tls-presentation
-opaque ReferenceId<0..2^8-1>;
-
 struct {
   uint64 tree_size;
   uint32 subtree_sizes<1..2^8-1>;
 
-  ReferenceId reference_ids<1..2^8-1>;
+  uint8 reference_ids<1..2^8-1>;
   Certificate chain<1..2^8-1>;
   opaque signature<0..2^16-1>;
 } AddChainRequest;
@@ -1109,25 +1106,24 @@ the most recent tree head observed by the client. The `subtree_sizes` field
 contains the greatest size of the Certificate Subtree observed by the client for
 each reference identifier, in the order the reference identifiers are provided
 in `reference_ids`. The `reference_ids` field contains the reference identifiers
-that the certificate chain will be validated against. The `chain` field contains
-the certificate chain itself. The first entry in `chain` is assumed to be the
-leaf certificate, and each subsequent certificate is assumed to authenticate the
-one prior, ending at a certificate which is authenticated by a trust anchor. The
-`signature` field contains a signature from the public key in the leaf
-certificate over the following:
+that the certificate chain will be validated against, identified by their
+zero-indexed offset into the leaf certificate's subjectAltName extension. The
+`chain` field contains the certificate chain itself. The first entry in `chain`
+is assumed to be the leaf certificate and each subsequent certificate is assumed
+to authenticate the one prior, ending at a certificate which is authenticated by
+a trust anchor. The `signature` field contains a signature from the public key
+in the leaf certificate over the following:
 
 TODO Specify signature challenge
 
 The Transparency Log MUST successfully verify:
 
 1. The certificate chain, <!-- TODO: RFC reference? -->
-2. That all of the requested reference identifiers in `reference_ids` correspond
-   to unique Prefix Tree search keys, and
-3. That all of the reference identifiers in `reference_ids` are explicitly
-   authenticated by the leaf certificate as a domain name or IP address. In
-   particular, this means that wildcard domain names are not resolved and will
-   need to be put in `reference_ids` in their unresolved form (such as
-   `*.example.com`) to pass verification.
+2. The signature challenge from the leaf certificate's public key, and
+3. That the `reference_ids` field is presented in ascending order, that each
+   entry corresponds to a domain name or IP address in the leaf certificate's
+   subjectAltName extension, and that each entry corresponds to a unique Prefix
+   Tree search key.
 
 The response body is AddChainResponse. If `tree_head_type` is set to `standard`,
 this indicates that the exact certificate chain is already present in the
@@ -1144,9 +1140,9 @@ identifiers are provided in `reference_ids`. If an entry of
 `AddChainResponse.subtree[i].inclusion` is additionally a consistency proof.
 
 The `bearer_token` field of an AddChainResponse is arbitrarily set by the
-Transparency Log and used to authenticate requests to the Transparency Log's
-other endpoints. The bearer token will stop working once the associated
-certificate chain has expired, regardless of revocation status.
+Transparency Log and used to authenticate requests to the Refresh Proof
+endpoint. The bearer token will stop working once the associated certificate
+chain has expired, regardless of revocation status.
 
 ## Refresh Proof
 
@@ -1178,25 +1174,57 @@ specifically for the reference identifiers associated with `bearer_token`. The
 Certificate Subtree of each reference identifier associated with `bearer_token`,
 in the order the reference identifiers were provided.
 
+## Issue Token
+
+Site Operators access this endpoint to obtain a bearer token to use when
+accessing the Transparency Log endpoints described in subsequent sections.
+
+POST /issue-token
+
+~~~ tls-presentation
+struct {
+  Certificate chain<1..2^8-1>;
+  opaque signature<0..2^16-1>;
+} IssueTokenRequest;
+
+struct {
+  BearerToken bearer_token;
+} IssueTokenResponse;
+~~~
+
+The request body is IssueTokenRequest. The `chain` field contains a certificate
+chain possessed by the client. The first entry in `chain` is assumed to be the
+leaf certificate and each subsequent certificate is assumed to authenticate the
+one prior, ending at a certificate which is authenticated by a trust anchor. The
+`signature` field contains a signature from the public key in the leaf
+certificate over the challenge specified in {{add-chain}}.
+
+The Transparency Log verifies the certificate chain and the signature challenge.
+If verification is successful, the response body is IssueTokenResponse. The
+`bearer_token` field is used to authenticate requests to the Transparency Log
+endpoints described below. The bearer token will stop working once the
+associated certificate chain has expired, regardless of revocation status.
+
 ## Get Certificates
 
 Site Operators access this endpoint for the purpose of auditing
 certificates that have been issued for their domain names or IP addresses.
 
-GET /get-certificates?bearer_token=X&reference_id=Y&start=Z
+GET /get-certificates?bearer_token=X&reference_id=Y{&start=Z}
 
 ~~~ tls-presentation
 struct {
+  uint32 start;
   SubtreeLogLeaf leaves<0..2^8-1>;
 } GetCertificatesResponse;
 ~~~
 
-The `bearer_token` query parameter contains a bearer token obtained from the Add
-Chain endpoint ({{add-chain}}). The `reference_id` query parameter may contain
-any domain name or IP address authenticated by the leaf certificate associated
-with the provided bearer token, or any domain name that is suffixed by any
-authenticated domain name. The `start` query parameter contains the position to
-start at in the Certificate Subtree.
+The `bearer_token` query parameter contains a bearer token obtained from the
+Issue Token endpoint encoded in URL-safe base64. The `reference_id` query
+parameter may contain any domain name or IP address authenticated by the leaf
+certificate associated with the provided bearer token, or any domain name that
+is suffixed by any authenticated domain name. The `start` query parameter, if
+present, contains the requested start position in the Certificate Subtree.
 
 Note that `reference_id` may be a domain name that is not authenticated by the
 certificate. For example, a certificate that only authenticates `example.com`
@@ -1209,10 +1237,12 @@ SubtreeLogLeaf structures in the same order that they were sequenced in the
 Certificate Subtree for the requested reference identifier, starting at position
 `start`.
 
-The `start` query parameter MUST be greater than or equal to the smallest
-`first_valid` field of any DomainCertificates structure for the associated
-reference identifier published in a log entry that has not passed its maximum
-lifetime.
+The `start` query parameter, if present, MUST be greater than or equal to the
+smallest `first_valid` field of any DomainCertificates structure for the
+associated reference identifier published in a log entry that has not passed its
+maximum lifetime.
+
+TODO: Inclusion
 
 ## Get Subdomains
 
@@ -1223,7 +1253,7 @@ GET /get-subdomains?bearer_token=W&reference_id=X&position=Y&start=Z
 
 ~~~ tls-presentation
 struct {
-  ReferenceId reference_id;
+  opaque reference_id<0..2^8-1>;
   uint32 size;
   uint32 first_valid;
   uint32 invalid_entries<0..2^8-1>;
@@ -1234,11 +1264,11 @@ struct {
 } GetSubdomainsResponse;
 ~~~
 
-The `bearer_token` query parameter contains a bearer token obtained from the Add
-Chain endpoint ({{add-chain}}). The `reference_id` query parameter may contain
-any domain name explicitly authenticated by the leaf certificate associated with
-the provided bearer token. The `position` query parameter is the position of a
-log entry that has not passed its maximum lifetime. The `start` query parameter
+The `bearer_token` query parameter contains a bearer token obtained from the
+Issue Token endpoint. The `reference_id` query parameter may contain any domain
+name explicitly authenticated by the leaf certificate associated with the
+provided bearer token. The `position` query parameter is the position of a log
+entry that has not passed its maximum lifetime. The `start` query parameter
 contains the number of subdomains of `reference_id` to skip in the endpoint's
 output.
 
