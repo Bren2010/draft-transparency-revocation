@@ -1033,7 +1033,7 @@ encoded.
 ## Get Tree
 
 Site Operators access this endpoint to initialize or update their view
-of the tree for the purpose of providing inclusion proofs to clients.
+of the tree.
 
 GET /get-tree{?tree_size=X}
 
@@ -1056,13 +1056,13 @@ body is GetTreeResponse. The `tree_head` field contains the most recent tree
 head published by the Transparency Log. The `combined` field contains the
 following:
 
-- The output of updating the view of the tree from `tree_size` (if provided) to
+- The output of updating the view of the tree (from `tree_size`, if provided) to
   `tree_head.tree_size` ({{Section 10.3.1 of KEYTRANS}}).
-- The timestamps of all log entries that are more recent than `tree_size` and
-  have timestamps less than or equal to `10*max_behind`. These timestamps are
-  provided in left-to-right order. However, note that some of them may be
-  omitted if they are duplicates with the previous bullet, as explained in
-  {{Section 10.3 of KEYTRANS}}.
+- The timestamps of all log entries that have timestamps less than or equal to
+  `10*max_behind`, excluding those contained in `tree_size`. These timestamps
+  are provided in left-to-right order. Note that some of them may be omitted if
+  they are duplicates with the previous bullet, as explained in {{Section 10.3
+  of KEYTRANS}}.
 
 If `tree_size` is provided, the proof in `combined.inclusion` is additionally a
 consistency proof.
@@ -1116,28 +1116,32 @@ in the leaf certificate over the following:
 
 TODO Specify signature challenge
 
-The Transparency Log MUST successfully verify:
+The Transparency Log verifies that:
 
-1. The certificate chain, <!-- TODO: RFC reference? -->
-2. The signature challenge from the leaf certificate's public key, and
-3. That the `reference_ids` field is presented in ascending order, that each
-   entry corresponds to a domain name or IP address in the leaf certificate's
-   subjectAltName extension, and that each entry corresponds to a unique Prefix
-   Tree search key.
+1. The `tree_size` field corresponds to a tree head that was issued less than
+   or equal to `max_behind` milliseconds in the past.
+2. The `subtree_sizes` field has the same length as the `reference_ids` field
+   and each entry is less than or equal to the most recent size of the
+   corresponding Certificate Subtree.
+3. The `reference_ids` field is in ascending order, each entry corresponds to a
+   domain name or IP address in the leaf certificate's subjectAltName extension,
+   and each entry corresponds to a unique Prefix Tree search key.
+4. The certificate chain in `chain` is valid. <!-- TODO: RFC reference? -->
+5. The signature in `signature` is valid.
 
 The response body is AddChainResponse. If `tree_head_type` is set to `standard`,
 this indicates that the exact certificate chain is already present in the
-Certificate Subtrees for the reference identifiers and published in the
+Certificate Subtrees for all of the reference identifiers and published in the
 rightmost log entry. If `tree_head_type` is set to `provisional`, this indicates
 that a provisional tree head has been issued for the chain. The provisional tree
 head is given in `tree_head` and an inclusion proof in the provisional Prefix
 Tree for all requested reference identifiers is given in `prefix`. The
-`combined` field contains the same contents as in the Get Tree endpoint
-({{get-tree}}). The `subtree` field contains an inclusion proof in the
-Certificate Subtree for each reference identifier, in the order the reference
-identifiers are provided in `reference_ids`. If an entry of
-`AddChainRequest.subtree_sizes` is greater than zero, then the corresponding
-`AddChainResponse.subtree[i].inclusion` is additionally a consistency proof.
+`combined` field contains the same contents as the Get Tree endpoint would. The
+`subtree` field contains an inclusion proof in the Certificate Subtree for each
+reference identifier, in the order the reference identifiers are provided in
+`reference_ids`. If an entry of `AddChainRequest.subtree_sizes` is greater than
+zero, then the corresponding `AddChainResponse.subtree[i].inclusion` is
+additionally a consistency proof.
 
 The `bearer_token` field of an AddChainResponse is arbitrarily set by the
 Transparency Log and used to authenticate requests to the Refresh Proof
@@ -1159,13 +1163,13 @@ struct {
 } RefreshProofResponse;
 ~~~
 
-The request contains a bearer token obtained from the Add Chain endpoint
-({{add-chain}}) in the `bearer_token` query parameter, and the position of a log
-entry in the `position` query parameter. The bearer token is encoded with
-URL-safe base64, described in {{Section 5 of !RFC4648}}. The `position` query
-parameter MUST either be the subsequent log entry issued after the provisional
-tree head (if any) associated with `bearer_token`, or be a log entry issued less
-than or equal to `max_behind` milliseconds in the past.
+The request contains a bearer token obtained from the Add Chain endpoint in the
+`bearer_token` query parameter, and the position of a log entry in the
+`position` query parameter. The bearer token is encoded with URL-safe base64,
+described in {{Section 5 of !RFC4648}}. The `position` query parameter MUST
+either be the subsequent log entry issued after the provisional tree head (if
+any) associated with `bearer_token`, or be a log entry issued less than or equal
+to `max_behind` milliseconds in the past.
 
 The response body is RefreshProofResponse. The `prefix` field contains an
 inclusion proof from the Prefix Tree stored at the requested log entry,
@@ -1214,7 +1218,11 @@ GET /get-certificates?bearer_token=X&reference_id=Y{&start=Z}
 
 ~~~ tls-presentation
 struct {
-  uint32 start;
+  select (start query parameter not present) {
+    case true:
+      uint32 first_valid;
+      NodeValue full_subtrees<0..2^8-1>;
+  }
   SubtreeLogLeaf leaves<0..2^8-1>;
 } GetCertificatesResponse;
 ~~~
@@ -1223,8 +1231,8 @@ The `bearer_token` query parameter contains a bearer token obtained from the
 Issue Token endpoint encoded in URL-safe base64. The `reference_id` query
 parameter may contain any domain name or IP address authenticated by the leaf
 certificate associated with the provided bearer token, or any domain name that
-is suffixed by any authenticated domain name. The `start` query parameter, if
-present, contains the requested start position in the Certificate Subtree.
+is suffixed by any authenticated domain name. The optional `start` query
+parameter contains the requested start position in the Certificate Subtree.
 
 Note that `reference_id` may be a domain name that is not authenticated by the
 certificate. For example, a certificate that only authenticates `example.com`
@@ -1232,17 +1240,19 @@ would not be accepted by TLS clients for `sub.example.com`. However,
 `sub.example.com` would still be an acceptable input to this endpoint since it
 has the suffix `.example.com`.
 
-The response body is GetCertificatesResponse. The `leaves` field contains
-SubtreeLogLeaf structures in the same order that they were sequenced in the
-Certificate Subtree for the requested reference identifier, starting at position
-`start`.
+The response body is GetCertificatesResponse. If the `start` query parameter is
+not present, the `first_valid` field contains the lowest value for `first_valid`
+in any DomainCertificates structure for the reference identifier that is
+currently published (meaning, excluding DomainCertificates structures in log
+entries that are past their maximum lifetime). The `full_subtrees` field
+contains the full subtrees of the Certificate Subtree, in left-to-right order,
+up to but excluding the `first_valid` entry.
 
-The `start` query parameter, if present, MUST be greater than or equal to the
-smallest `first_valid` field of any DomainCertificates structure for the
-associated reference identifier published in a log entry that has not passed its
-maximum lifetime.
-
-TODO: Inclusion
+The `leaves` field contains SubtreeLogLeaf structures in the same order that
+they were sequenced in the Certificate Subtree for the requested reference
+identifier, starting at position `start` or starting at position `first_valid`
+is `start` is not present. If the `start` query parameter is present, it MUST be
+greater than `first_valid`.
 
 ## Get Subdomains
 
@@ -1253,33 +1263,39 @@ GET /get-subdomains?bearer_token=W&reference_id=X&position=Y&start=Z
 
 ~~~ tls-presentation
 struct {
-  opaque reference_id<0..2^8-1>;
+  opaque search_key<0..2^8-1>;
   uint32 size;
   uint32 first_valid;
   uint32 invalid_entries<0..2^8-1>;
 } Subdomain;
 
 struct {
+  PrefixProof prefix;
   Subdomain subdomains<0..2^8-1>;
 } GetSubdomainsResponse;
 ~~~
 
 The `bearer_token` query parameter contains a bearer token obtained from the
-Issue Token endpoint. The `reference_id` query parameter may contain any domain
-name explicitly authenticated by the leaf certificate associated with the
-provided bearer token. The `position` query parameter is the position of a log
-entry that has not passed its maximum lifetime. The `start` query parameter
-contains the number of subdomains of `reference_id` to skip in the endpoint's
-output.
+Issue Token endpoint. The `reference_id` query parameter may contain the
+zero-indexed offset of any domain name in the subjectAltName extension of the
+leaf certificate associated with the provided bearer token. The `position` query
+parameter is the position of a log entry that has not passed its maximum
+lifetime. The `start` query parameter contains the number of subdomains to skip
+in the endpoint's output.
 
-The response body is GetSubdomainsResponse, which contains one Subdomain
-structure for each search key stored in the Prefix Tree that is prefixed with
-the search key corresponding to `reference_id` plus an additional dot. The
+The response body is GetSubdomainsResponse. Each entry of `subdomains`
+corresponds to a search key stored in the Prefix Tree that is prefixed with the
+search key corresponding to `reference_id` plus an additional dot. The
 `subdomains` array is sorted by lexicographic order of the corresponding Prefix
-Tree search keys. The `reference_id` field contains the reference identifier
-while the `size`, `first_valid`, and `invalid_entries` fields correspond to the
-reference identifier's Certificate Subtree as it exists in the log entry
-indicated by `position`.
+Tree search keys. In each entry, the `search_key` field contains the Prefix Tree
+search key while the `size`, `first_valid`, and `invalid_entries` fields match
+the corresponding DomainCertificates structure for the search key as it exists
+in the log entry at `position`.
+
+If any search keys with the required prefix exist in the Prefix Tree in the log
+entry at `position`, the `prefix` field contains an inclusion proof for all the
+search keys returned in `subdomains`. If no search keys with the required prefix
+exist, the `prefix` field contains a non-inclusion proof for the prefix.
 
 Clients rely on the structure of the Prefix Tree to authenticate whether or not
 all subdomains have been provided yet by the Transparency Log. Clients may need
@@ -1323,13 +1339,13 @@ struct {
 } GetRevocationsResponse;
 ~~~
 
-The `bearer_token` query parameter contains a bearer token obtained from the Add
-Chain endpoint ({{add-chain}}). The `reference_id` query parameter may contain
-any domain name or IP address authenticated by the leaf certificate associated
-with the provided bearer token, or any domain name that is suffixed by any
-authenticated domain name. Optionally, a page number may be provided in the
-`page` query parameter. The `page` parameter MUST be a value observed in the
-`next` field of a prior GetRevocationsResponse.
+The `bearer_token` query parameter contains a bearer token obtained from the
+Issue Token endpoint. The `reference_id` query parameter may contain the
+zero-indexed offset of any domain name or IP address in the subjectAltName
+extension of the leaf certificate associated with the provided bearer token. An
+optional page number may be provided in the `page` query parameter. The `page`
+parameter MUST be a value observed in the `next` field of a prior
+GetRevocationsResponse.
 
 The response body is GetRevocationsResponse. The `revocations` field of the
 response contains Revocation structures corresponding one-to-one with the
@@ -1351,7 +1367,7 @@ When clients observe a provisional inclusion proof, they retain condensed state
 about the proof until they observe that the associated certificate chain was
 properly included in the subsequent log entry. The primary mechanism by which
 clients are expected to observe this is through future connections to the same
-server. However, this may fail to happen for various reasons. The client may not
+server. However, this may fail to happen for various reasons: the client may not
 wish to contact the server again within the allotted time, the server may go
 offline, or the server may simply decline to respond with a proof from the same
 Transparency Log. As such, additional mechanisms are described to enable the
@@ -1367,17 +1383,18 @@ is not initiated by a user and will not carry user request data. The client
 should advertise in its ClientHello only `provisional` tree head types where the
 rightmost log entry has a timestamp more than `max_behind` milliseconds in the
 past. If the connection succeeds, any certificate the server responds with will
-necessarily provide the information the client needs to purge a
-previously observed provisional inclusion proof from its state. Any additional
-provisional inclusion proof provided by the server in such a connection SHOULD
-be disregarded, rather than triggering new state to be stored.
+necessarily provide the information the client needs to purge a previously
+observed provisional inclusion proof from its state. Any additional provisional
+inclusion proof provided by the server in such a connection SHOULD be
+disregarded, with the client only updating the stored bearer token and
+pre-shared key if necessary to resolve another provisional inclusion proof.
 
 ## Oblivious Third Party
 
-If provided, clients may also attempt to contact a third-party service
-(potentially operated by their software vendor) to request proof that a
-subsequent log entry is constructed correctly. Such an endpoint could be
-contacted over Oblivious HTTP {{?RFC9458}} to preserve the client's privacy.
+If provided, clients may attempt to contact a third-party service, potentially
+operated by their software vendor, to request proof that a subsequent log entry
+is constructed correctly. Such an endpoint could be contacted over Oblivious
+HTTP {{?RFC9458}} to preserve the client's privacy.
 
 <!-- TODO Write more -->
 
