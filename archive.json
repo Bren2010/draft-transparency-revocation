@@ -1,6 +1,6 @@
 {
   "magic": "E!vIA5L86J2I",
-  "timestamp": "2025-05-18T00:25:19.624151+00:00",
+  "timestamp": "2025-06-15T00:27:11.107506+00:00",
   "repo": "Bren2010/draft-transparency-revocation",
   "labels": [
     {
@@ -273,6 +273,34 @@
           ]
         }
       ]
+    },
+    {
+      "number": 7,
+      "id": "PR_kwDONGZggs6aJJTR",
+      "title": "Brendan/feedback",
+      "url": "https://github.com/Bren2010/draft-transparency-revocation/pull/7",
+      "state": "MERGED",
+      "author": "Bren2010",
+      "authorAssociation": "OWNER",
+      "assignees": [],
+      "labels": [],
+      "body": "",
+      "createdAt": "2025-06-12T05:16:29Z",
+      "updatedAt": "2025-06-12T05:16:39Z",
+      "baseRepository": "Bren2010/draft-transparency-revocation",
+      "baseRefName": "main",
+      "baseRefOid": "83b43a8d28c8c0c11e7300e210154663a14a52d0",
+      "headRepository": "Bren2010/draft-transparency-revocation",
+      "headRefName": "brendan/feedback",
+      "headRefOid": "0678519bce9d3e058e70ab14281e4ea63aef1c6a",
+      "closedAt": "2025-06-12T05:16:38Z",
+      "mergedAt": "2025-06-12T05:16:38Z",
+      "mergedBy": "Bren2010",
+      "mergeCommit": {
+        "oid": "754d455c53a74499b3dd5349ffb9527e70236e7e"
+      },
+      "comments": [],
+      "reviews": []
     }
   ]
 }
