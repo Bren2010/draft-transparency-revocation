@@ -18,11 +18,11 @@ websites in a highly efficient way without relying on third-party services.
 Third, it provides a high degree of operational redundancy to minimize the risk
 of cascading outages. 
     " name="description">
-<meta content="xml2rfc 3.28.1" name="generator">
+<meta content="xml2rfc 3.29.0" name="generator">
 <meta content="draft-mcmillion-transparency-revocation-latest" name="ietf.draft">
 <!-- Generator version information:
-  xml2rfc 3.28.1
-    Python 3.12.10
+  xml2rfc 3.29.0
+    Python 3.12.11
     ConfigArgParse 1.7
     google-i18n-address 3.1.1
     intervaltree 3.1.0
@@ -31,7 +31,7 @@ of cascading outages.
     platformdirs 4.3.8
     pycountry 24.6.1
     PyYAML 6.0.2
-    requests 2.32.3
+    requests 2.32.4
     setuptools 80.9.0
     wcwidth 0.2.13
 -->
@@ -1056,7 +1056,7 @@ svg :is([fill="white"], [fill^="#fff"]) {
 </tr></thead>
 <tfoot><tr>
 <td class="left">McMillion, et al.</td>
-<td class="center">Expires 14 December 2025</td>
+<td class="center">Expires 24 December 2025</td>
 <td class="right">[Page]</td>
 </tr></tfoot>
 </table>
@@ -1069,12 +1069,12 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <dd class="internet-draft">draft-mcmillion-transparency-revocation-latest</dd>
 <dt class="label-published">Published:</dt>
 <dd class="published">
-<time datetime="2025-06-12" class="published">12 June 2025</time>
+<time datetime="2025-06-22" class="published">22 June 2025</time>
     </dd>
 <dt class="label-intended-status">Intended Status:</dt>
 <dd class="intended-status">Informational</dd>
 <dt class="label-expires">Expires:</dt>
-<dd class="expires"><time datetime="2025-12-14">14 December 2025</time></dd>
+<dd class="expires"><time datetime="2025-12-24">24 December 2025</time></dd>
 <dt class="label-authors">Authors:</dt>
 <dd class="authors">
 <div class="author">
@@ -1133,7 +1133,7 @@ of cascading outages.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
         time. It is inappropriate to use Internet-Drafts as reference
         material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
 <p id="section-boilerplate.1-4">
-        This Internet-Draft will expire on 14 December 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+        This Internet-Draft will expire on 24 December 2025.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="copyright">
@@ -2771,14 +2771,13 @@ log entry's timestamp is between <code>5*max_behind</code> and <code>10*max_behi
 in the past, the client <span class="bcp14">SHOULD</span> attempt a single background request to the server
 that provided the proof. A <strong>background request</strong> is a connection attempt that
 is not initiated by a user and will not carry user request data. The client
-should advertise in its ClientHello only <code>provisional</code> tree head types where the
+advertises in its ClientHello only <code>provisional</code> tree head types where the
 rightmost log entry has a timestamp more than <code>max_behind</code> milliseconds in the
 past. If the connection succeeds, any certificate the server responds with will
 necessarily provide the information the client needs to purge a previously
 observed provisional inclusion proof from its state. Any additional provisional
 inclusion proof provided by the server in such a connection <span class="bcp14">SHOULD</span> be
-disregarded, with the client only updating the stored bearer token and
-pre-shared key if necessary to resolve another provisional inclusion proof.<a href="#section-7.1-1" class="pilcrow">¶</a></p>
+disregarded.<a href="#section-7.1-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="oblivious-third-party">
@@ -2801,11 +2800,11 @@ HTTP <span>[<a href="#RFC9458" class="cite xref">RFC9458</a>]</span> to preserve
 and the rightmost log entry's timestamp is more than <code>10*max_behind</code>
 milliseconds in the past, the client <span class="bcp14">MUST</span> report the provisional inclusion proof
 to a party distinct from the issuing Certificate Authority and the operator of
-the Transparency Log. The client can then delete the associated state at will.<a href="#section-7.3-1" class="pilcrow">¶</a></p>
+the Transparency Log. After this, the client <span class="bcp14">MAY</span> delete the associated state.<a href="#section-7.3-1" class="pilcrow">¶</a></p>
 <p id="section-7.3-2">The purpose of reporting provisional inclusion proofs that are unable to be
 resolved is to ensure that there is broader ecosystem awareness of a potential
 issue with the Transparency Log. The extent to which there was any malicious
-behavior or operational errors, and any corrective action that should be taken,
+behavior or operational errors, and any corrective action to be taken,
 would need to be decided out-of-band.<a href="#section-7.3-2" class="pilcrow">¶</a></p>
 </section>
 </div>
@@ -2964,8 +2963,8 @@ fork occurs. This minimizes the risk of connection failure when connecting to
 servers that have inclusion proofs from different forks.<a href="#section-8.3-2" class="pilcrow">¶</a></p>
 <p id="section-8.3-3">If a client advertised a non-zero <code>standard</code> tree head type and proof
 verification failed only at the final signature verification step (or at direct
-comparison of the Prefix Tree root hash, in the case of <code>SameStandardProof</code>), this may
-indicate that there is a fork the client is unaware of. The client <span class="bcp14">SHOULD</span>
+comparison of the Prefix Tree root hash, in the case of <code>SameHeadProof</code>), this
+may indicate that there is a fork the client is unaware of. The client <span class="bcp14">MAY</span>
 attempt to reconnect to the server while advertising a zero <code>standard</code> tree head
 type. This will prompt the server to provide additional intermediate nodes,
 allowing the client to compute the correct Log Tree root hash for signature
@@ -3130,11 +3129,11 @@ three signatures (two from distinct Certificate Transparency logs and one from
 an OCSP staple) with either one or zero signatures.<a href="#section-10.2-2" class="pilcrow">¶</a></p>
 <p id="section-10.2-3">In the TLS extension described in <a href="#tls-extension" class="auto internal xref">Section 5</a>, the most common response
 one would expect in the TLS server's Certificate message is a
-<code>SameStandardProof</code>. This is because clients make an effort to advertise the
+<code>SameHeadProof</code>. This is because clients make an effort to advertise the
 specific version of the Transparency Log that the server can provide a proof for
 without also transmitting a signature.<a href="#section-10.2-3" class="pilcrow">¶</a></p>
 <p id="section-10.2-4">Using the variables from the previous subsection, the size in bytes of a
-<code>SameStandardProof</code> is <code>15 + 32*P + 32*M</code>, which would then be estimated at 1295
+<code>SameHeadProof</code> is <code>15 + 32*P + 32*M</code>, which would then be estimated at 1295
 bytes in a typical deployment. Compared to transmitting three ML-DSA-44
 signatures, which would add to 7680 bytes, this is an 83% reduction.<a href="#section-10.2-4" class="pilcrow">¶</a></p>
 </section>
@@ -3175,30 +3174,29 @@ information it contained was properly integrated into the Transparency Log. The
 primary avenue for obtaining this verification is advertising knowledge of the
 provisional proof back to the host that it came from, hoping to get the
 necessary information in-band.<a href="#section-11.1-4" class="pilcrow">¶</a></p>
-<p id="section-11.1-5">Since provisional inclusion proofs must be issued quickly, they don't have
-time to build up a large anonymity set with other hosts. Instead of having clients
-advertise knowledge of a specific provisional proof in their ClientHello,
-they instead use a bearer token that was provided by the host. This bearer token
-is provided in the encrypted Certificate message the first time that the
-provisional proof is used by the host. Similarly, when the bearer token is
-redeemed (i.e., when the host shows that the provisional proof was correctly
-integrated into the Transparency Log), this information is provided in the
-encrypted Certificate message. As such, if the host generates the bearer token
-in a secure way, a passive network
-observer never sees anything that would identify the certificate shown to the
-client.<a href="#section-11.1-5" class="pilcrow">¶</a></p>
+<p id="section-11.1-5">Since provisional inclusion proofs must be issued quickly, they don't have time
+to build up a large anonymity set with other hosts. Instead of having clients
+advertise knowledge of a specific provisional proof in their ClientHello, they
+instead use a bearer token that was provided by the host. These bearer tokens
+are provided in the encrypted Certificate message whenever a provisional proof
+is shown by the host. Similarly, when the bearer token is redeemed (i.e., when
+the host shows that the provisional proof was correctly integrated into the
+Transparency Log), this information is provided in the encrypted Certificate
+message. As such, if the host generates the bearer token in a secure way, a
+passive network observer never sees anything that would identify the certificate
+shown to the client.<a href="#section-11.1-5" class="pilcrow">¶</a></p>
 <p id="section-11.1-6">Each bearer token is additionally associated with a pre-shared key which is
 provided to the TLS key schedule. This prevents an active attacker from
 establishing a TLS connection to the host, advertising an observed bearer token,
 and learning which certificate is provided.<a href="#section-11.1-6" class="pilcrow">¶</a></p>
 <p id="section-11.1-7">Finally, note that it is not a goal to prevent an attacker from learning whether
 a client has previously contacted a host <em>at all</em> before. The protocol
-explicitly relies on the client's stored state to send as little data over
-the wire as possible. A passive observer of network traffic could trivially
-determine from the size of the encrypted portion of the handshake messages
-whether such state was present or not, and therefore whether the host had been
-contacted before. Similarly, it is not a goal to prevent a host from identifying
-the same client over many connections.<a href="#section-11.1-7" class="pilcrow">¶</a></p>
+explicitly relies on the client's stored state to remain secure while sending
+minimal data over the wire. A passive observer of network traffic could
+trivially determine from the size of the encrypted portion of the handshake
+messages whether such state was present or not, and therefore whether the host
+had been contacted before. Similarly, it is not a goal to prevent a host from
+identifying the same client over many connections.<a href="#section-11.1-7" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="downgrade-prevention">
