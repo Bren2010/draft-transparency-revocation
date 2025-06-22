@@ -1380,14 +1380,13 @@ log entry's timestamp is between `5*max_behind` and `10*max_behind` milliseconds
 in the past, the client SHOULD attempt a single background request to the server
 that provided the proof. A **background request** is a connection attempt that
 is not initiated by a user and will not carry user request data. The client
-should advertise in its ClientHello only `provisional` tree head types where the
+advertises in its ClientHello only `provisional` tree head types where the
 rightmost log entry has a timestamp more than `max_behind` milliseconds in the
 past. If the connection succeeds, any certificate the server responds with will
 necessarily provide the information the client needs to purge a previously
 observed provisional inclusion proof from its state. Any additional provisional
 inclusion proof provided by the server in such a connection SHOULD be
-disregarded, with the client only updating the stored bearer token and
-pre-shared key if necessary to resolve another provisional inclusion proof.
+disregarded.
 
 ## Oblivious Third Party
 
@@ -1404,12 +1403,12 @@ If a client has been unable to resolve a provisional inclusion proof on its own,
 and the rightmost log entry's timestamp is more than `10*max_behind`
 milliseconds in the past, the client MUST report the provisional inclusion proof
 to a party distinct from the issuing Certificate Authority and the operator of
-the Transparency Log. The client can then delete the associated state at will.
+the Transparency Log. After this, the client MAY delete the associated state.
 
 The purpose of reporting provisional inclusion proofs that are unable to be
 resolved is to ensure that there is broader ecosystem awareness of a potential
 issue with the Transparency Log. The extent to which there was any malicious
-behavior or operational errors, and any corrective action that should be taken,
+behavior or operational errors, and any corrective action to be taken,
 would need to be decided out-of-band.
 
 
@@ -1527,8 +1526,8 @@ servers that have inclusion proofs from different forks.
 
 If a client advertised a non-zero `standard` tree head type and proof
 verification failed only at the final signature verification step (or at direct
-comparison of the Prefix Tree root hash, in the case of `SameStandardProof`), this may
-indicate that there is a fork the client is unaware of. The client SHOULD
+comparison of the Prefix Tree root hash, in the case of `SameHeadProof`), this
+may indicate that there is a fork the client is unaware of. The client MAY
 attempt to reconnect to the server while advertising a zero `standard` tree head
 type. This will prompt the server to provide additional intermediate nodes,
 allowing the client to compute the correct Log Tree root hash for signature
@@ -1640,12 +1639,12 @@ an OCSP staple) with either one or zero signatures.
 
 In the TLS extension described in {{tls-extension}}, the most common response
 one would expect in the TLS server's Certificate message is a
-`SameStandardProof`. This is because clients make an effort to advertise the
+`SameHeadProof`. This is because clients make an effort to advertise the
 specific version of the Transparency Log that the server can provide a proof for
 without also transmitting a signature.
 
 Using the variables from the previous subsection, the size in bytes of a
-`SameStandardProof` is `15 + 32*P + 32*M`, which would then be estimated at 1295
+`SameHeadProof` is `15 + 32*P + 32*M`, which would then be estimated at 1295
 bytes in a typical deployment. Compared to transmitting three ML-DSA-44
 signatures, which would add to 7680 bytes, this is an 83% reduction.
 
@@ -1681,18 +1680,17 @@ primary avenue for obtaining this verification is advertising knowledge of the
 provisional proof back to the host that it came from, hoping to get the
 necessary information in-band.
 
-Since provisional inclusion proofs must be issued quickly, they don't have
-time to build up a large anonymity set with other hosts. Instead of having clients
-advertise knowledge of a specific provisional proof in their ClientHello,
-they instead use a bearer token that was provided by the host. This bearer token
-is provided in the encrypted Certificate message the first time that the
-provisional proof is used by the host. Similarly, when the bearer token is
-redeemed (i.e., when the host shows that the provisional proof was correctly
-integrated into the Transparency Log), this information is provided in the
-encrypted Certificate message. As such, if the host generates the bearer token
-in a secure way, a passive network
-observer never sees anything that would identify the certificate shown to the
-client.
+Since provisional inclusion proofs must be issued quickly, they don't have time
+to build up a large anonymity set with other hosts. Instead of having clients
+advertise knowledge of a specific provisional proof in their ClientHello, they
+instead use a bearer token that was provided by the host. These bearer tokens
+are provided in the encrypted Certificate message whenever a provisional proof
+is shown by the host. Similarly, when the bearer token is redeemed (i.e., when
+the host shows that the provisional proof was correctly integrated into the
+Transparency Log), this information is provided in the encrypted Certificate
+message. As such, if the host generates the bearer token in a secure way, a
+passive network observer never sees anything that would identify the certificate
+shown to the client.
 
 Each bearer token is additionally associated with a pre-shared key which is
 provided to the TLS key schedule. This prevents an active attacker from
@@ -1701,12 +1699,12 @@ and learning which certificate is provided.
 
 Finally, note that it is not a goal to prevent an attacker from learning whether
 a client has previously contacted a host *at all* before. The protocol
-explicitly relies on the client's stored state to send as little data over
-the wire as possible. A passive observer of network traffic could trivially
-determine from the size of the encrypted portion of the handshake messages
-whether such state was present or not, and therefore whether the host had been
-contacted before. Similarly, it is not a goal to prevent a host from identifying
-the same client over many connections.
+explicitly relies on the client's stored state to remain secure while sending
+minimal data over the wire. A passive observer of network traffic could
+trivially determine from the size of the encrypted portion of the handshake
+messages whether such state was present or not, and therefore whether the host
+had been contacted before. Similarly, it is not a goal to prevent a host from
+identifying the same client over many connections.
 
 ## Downgrade Prevention
 
