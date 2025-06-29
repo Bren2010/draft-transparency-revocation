@@ -12,7 +12,7 @@ Expires: 31 December 2025                                     Google LLC
 
 
             Reliable Transparency and Revocation Mechanisms
-             draft-mcmillion-transparency-revocation-latest
+           draft-mcmillion-tls-transparency-revocation-latest
 
 Abstract
 
@@ -32,9 +32,9 @@ About This Document
 
    The latest revision of this draft can be found at
    https://Bren2010.github.io/draft-transparency-revocation/draft-
-   mcmillion-transparency-revocation.html.  Status information for this
-   document may be found at https://datatracker.ietf.org/doc/draft-
-   mcmillion-transparency-revocation/.
+   mcmillion-tls-transparency-revocation.html.  Status information for
+   this document may be found at https://datatracker.ietf.org/doc/draft-
+   mcmillion-tls-transparency-revocation/.
 
    Source for this draft and an issue tracker can be found at
    https://github.com/Bren2010/draft-transparency-revocation.
