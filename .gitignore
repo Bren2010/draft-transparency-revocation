@@ -17,7 +17,7 @@
 /versioned/
 Gemfile.lock
 archive.json
-draft-mcmillion-transparency-revocation.xml
+draft-mcmillion-tls-transparency-revocation.xml
 package-lock.json
 report.xml
 !requirements.txt

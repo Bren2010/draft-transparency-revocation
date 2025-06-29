@@ -2,10 +2,10 @@
 
 This is the working area for the individual Internet-Draft, "Reliable Transparency and Revocation Mechanisms".
 
-* [Editor's Copy](https://Bren2010.github.io/draft-transparency-revocation/#go.draft-mcmillion-transparency-revocation.html)
-* [Datatracker Page](https://datatracker.ietf.org/doc/draft-mcmillion-transparency-revocation)
-* [Individual Draft](https://datatracker.ietf.org/doc/html/draft-mcmillion-transparency-revocation)
-* [Compare Editor's Copy to Individual Draft](https://Bren2010.github.io/draft-transparency-revocation/#go.draft-mcmillion-transparency-revocation.diff)
+* [Editor's Copy](https://Bren2010.github.io/draft-transparency-revocation/#go.draft-mcmillion-tls-transparency-revocation.html)
+* [Datatracker Page](https://datatracker.ietf.org/doc/draft-mcmillion-tls-transparency-revocation)
+* [Individual Draft](https://datatracker.ietf.org/doc/html/draft-mcmillion-tls-transparency-revocation)
+* [Compare Editor's Copy to Individual Draft](https://Bren2010.github.io/draft-transparency-revocation/#go.draft-mcmillion-tls-transparency-revocation.diff)
 
 
 ## Contributing

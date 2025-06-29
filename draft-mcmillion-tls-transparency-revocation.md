@@ -2,7 +2,7 @@
 title: "Reliable Transparency and Revocation Mechanisms"
 category: info
 
-docname: draft-mcmillion-transparency-revocation-latest
+docname: draft-mcmillion-tls-transparency-revocation-latest
 submissiontype: IETF
 number:
 date:
@@ -13,7 +13,7 @@ workgroup: TLS Working Group
 keyword:
 venue:
   github: "Bren2010/draft-transparency-revocation"
-  latest: "https://Bren2010.github.io/draft-transparency-revocation/draft-mcmillion-transparency-revocation.html"
+  latest: "https://Bren2010.github.io/draft-transparency-revocation/draft-mcmillion-tls-transparency-revocation.html"
 
 author:
  -
